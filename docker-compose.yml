@@ -1,0 +1,68 @@
+services:
+  # MongoDB Database
+  mongo:
+    image: mongo:7
+    container_name: pnae-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: pnae_dev
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # PNAE API
+  api:
+    build:
+      context: .
+      target: development
+    container_name: pnae-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/.venv  # Exclude venv from mount
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017
+      - DATABASE_NAME=pnae_dev
+      - JWT_SECRET=dev-secret-change-in-production
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=1440
+      - STORAGE_PROVIDER=mock
+      - MOCK_STORAGE_BASE_URL=http://localhost:8000/mock-storage
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Seeds runner (one-time)
+  seeds:
+    build:
+      context: .
+      target: development
+    container_name: pnae-seeds
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017
+      - DATABASE_NAME=pnae_dev
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: python seeds.py
+    profiles:
+      - seeds
+
+volumes:
+  mongo_data:
+
