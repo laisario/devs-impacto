@@ -69,6 +69,9 @@ class FormalizationTaskResponse(BaseModel):
     requirement_id: str | None = Field(
         None, description="ID do requirement de onboarding associado a esta tarefa"
     )
+    need_upload: bool = Field(
+        default=False, description="Se esta tarefa requer upload de documento (PDF ou imagem)"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -88,6 +91,9 @@ class FormalizationTaskInDB(BaseModel):
     created_at: datetime
     requirement_id: str | None = Field(
         None, description="ID do requirement de onboarding associado a esta tarefa"
+    )
+    need_upload: bool = Field(
+        default=False, description="Se esta tarefa requer upload de documento (PDF ou imagem)"
     )
 
     model_config = {"populate_by_name": True}

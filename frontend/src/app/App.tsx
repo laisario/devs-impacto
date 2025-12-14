@@ -7,7 +7,6 @@ import { OnboardingFlow } from '../features/onboarding/OnboardingFlow';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { EscalationPage } from '../features/escalation/EscalationPage';
 import { getOnboardingStatus } from '../services/api/onboarding';
-import { ApiClientError } from '../services/api/client';
 
 function AppContent() {
   const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -92,7 +91,6 @@ function AppContent() {
             setView('login');
           }
         }}
-        onConsult={() => setView('escalation')}
       />
     );
   }
@@ -125,7 +123,6 @@ function AppContent() {
         documents={documents}
         setChecklist={setChecklist}
         setDocuments={setDocuments}
-        onEscalate={() => setView('escalation')}
         onLogout={handleLogout}
       />
     );

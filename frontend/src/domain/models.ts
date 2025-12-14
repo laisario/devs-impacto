@@ -40,6 +40,7 @@ export interface ChecklistItem {
   taskId?: string; // Backend task_id
   category?: TaskCategory;
   requirementId?: string; // For AI guide generation
+  needUpload?: boolean; // If this task requires document upload
 }
 
 /**

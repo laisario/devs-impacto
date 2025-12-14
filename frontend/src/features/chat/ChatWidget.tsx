@@ -8,7 +8,7 @@ export function ChatWidget({ userName }: { userName: string }) {
     {
       id: '1',
       role: 'assistant',
-      content: `Olá, ${userName.split(' ')[0]}! Sou sua assistente virtual. Posso te ajudar com o checklist, explicar documentos ou ler as instruções em áudio. Como posso ajudar?`,
+      content: `Olá, ${userName.split(' ')[0]}! Posso te ajudar com a lista de tarefas, explicar documentos ou ler as instruções em áudio. Como posso ajudar?`,
     },
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -106,7 +106,7 @@ export function ChatWidget({ userName }: { userName: string }) {
                 <Leaf className="h-4 w-4" />
               </div>
               <div>
-                <h3 className="font-bold text-sm">Assistente CertificaFácil</h3>
+                <h3 className="font-bold text-sm">Ajuda CertificaFácil</h3>
                 <p className="text-[10px] opacity-90 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span> Online
                 </p>

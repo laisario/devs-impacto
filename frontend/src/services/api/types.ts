@@ -181,6 +181,7 @@ export interface FormalizationTaskResponse {
   completed_at?: string | null;
   created_at: string;
   requirement_id?: string | null;
+  need_upload?: boolean;
 }
 
 // AI Guide types

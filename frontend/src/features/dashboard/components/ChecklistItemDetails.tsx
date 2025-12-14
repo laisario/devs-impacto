@@ -35,26 +35,36 @@ export function ChecklistItemDetails({
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !relatedDoc) return;
+    if (!file) return;
 
     setIsUploading(true);
     setUploadError('');
     setUploadProgress(0);
 
     try {
-      // Map document type - you may need to adjust this mapping based on your needs
-      const docTypeMap: Record<string, string> = {
-        'identidade': 'cpf',
-        'caf': 'dap_caf',
-        'residencia': 'proof_address',
-        'nota_fiscal': 'other',
-      };
-      const docType = docTypeMap[relatedDoc.type] || relatedDoc.type || 'other';
+      let docType = 'other';
+      
+      if (relatedDoc) {
+        // Map document type - you may need to adjust this mapping based on your needs
+        const docTypeMap: Record<string, string> = {
+          'identidade': 'cpf',
+          'caf': 'dap_caf',
+          'residencia': 'proof_address',
+          'nota_fiscal': 'other',
+        };
+        docType = docTypeMap[relatedDoc.type] || relatedDoc.type || 'other';
+      } else if (item.needUpload) {
+        // For tasks that need upload but don't have a related doc, use 'other'
+        docType = 'other';
+      }
 
       await uploadDocument(file, docType);
       
-      // Update document status
-      onUploadDoc(relatedDoc.id);
+      // Update document status if there's a related doc
+      if (relatedDoc) {
+        onUploadDoc(relatedDoc.id);
+      }
+      
       setUploadProgress(100);
       
       // Reset file input
@@ -74,10 +84,8 @@ export function ChecklistItemDetails({
   };
 
   const handleUploadClick = () => {
-    if (relatedDoc?.status === 'missing' && fileInputRef.current) {
+    if (fileInputRef.current) {
       fileInputRef.current.click();
-    } else {
-      onUploadDoc(relatedDoc?.id || '');
     }
   };
 
@@ -262,25 +270,29 @@ export function ChecklistItemDetails({
             </div>
           )}
 
-          {relatedDoc && (
+          {(relatedDoc || item.needUpload) && (
             <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
               <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
                 <FileText className="h-5 w-5 text-green-600" />
-                Documento Necessário: {relatedDoc.name}
+                {relatedDoc ? `Documento Necessário: ${relatedDoc.name}` : 'Enviar Documento'}
               </h3>
               <p className="text-sm text-slate-500 mb-4">
-                Após concluir os passos acima, envie a foto ou PDF do documento aqui para validação.
+                {relatedDoc
+                  ? 'Após concluir os passos acima, envie a foto ou PDF do documento aqui para validação.'
+                  : 'Envie uma foto ou PDF do documento relacionado a esta tarefa.'}
               </p>
 
               <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  {relatedDoc.status === 'missing' && (
-                    <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold">Pendente</span>
-                  )}
-                  {(relatedDoc.status === 'uploaded' || relatedDoc.status === 'ai_reviewed') && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Enviado</span>
-                  )}
-                </div>
+                {relatedDoc && (
+                  <div className="flex-1">
+                    {relatedDoc.status === 'missing' && (
+                      <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold">Pendente</span>
+                    )}
+                    {(relatedDoc.status === 'uploaded' || relatedDoc.status === 'ai_reviewed') && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Enviado</span>
+                    )}
+                  </div>
+                )}
 
                 <input
                   ref={fileInputRef}
@@ -288,12 +300,12 @@ export function ChecklistItemDetails({
                   accept=".pdf,.jpg,.jpeg,.png"
                   onChange={handleFileSelect}
                   className="hidden"
-                  disabled={isUploading || relatedDoc.status !== 'missing'}
+                  disabled={isUploading || (relatedDoc?.status === 'uploaded' || relatedDoc?.status === 'ai_reviewed')}
                 />
 
                 <button
                   onClick={handleUploadClick}
-                  disabled={relatedDoc.status !== 'missing' || isUploading}
+                  disabled={isUploading || (relatedDoc?.status === 'uploaded' || relatedDoc?.status === 'ai_reviewed')}
                   className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   {isUploading ? (
@@ -304,7 +316,7 @@ export function ChecklistItemDetails({
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      {relatedDoc.status === 'missing' ? 'Fazer Upload Agora' : 'Upload Concluído'}
+                      {relatedDoc?.status === 'missing' || !relatedDoc ? 'Fazer Upload Agora' : 'Upload Concluído'}
                     </>
                   )}
                 </button>
@@ -327,7 +339,7 @@ export function ChecklistItemDetails({
                 </div>
               )}
 
-              {relatedDoc.aiNotes && (
+              {relatedDoc?.aiNotes && (
                 <div className="mt-4 bg-white p-3 rounded border border-green-200 text-xs text-green-800 flex gap-2">
                   <ShieldCheck className="h-4 w-4 shrink-0" />
                   {relatedDoc.aiNotes}

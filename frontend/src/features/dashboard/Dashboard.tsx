@@ -24,7 +24,6 @@ export function Dashboard({
   documents,
   setChecklist,
   setDocuments,
-  onEscalate,
   onLogout,
 }: {
   user: UserProfile | null;
@@ -32,7 +31,6 @@ export function Dashboard({
   documents: Document[];
   setChecklist: React.Dispatch<React.SetStateAction<ChecklistItem[]>>;
   setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
-  onEscalate: () => void;
   onLogout: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<'checklist' | 'docs'>('checklist');
@@ -51,6 +49,7 @@ export function Dashboard({
     taskId: task.task_id,
     category: task.category,
     requirementId: task.requirement_id || undefined,
+    needUpload: task.need_upload || false,
   });
 
   // Map backend document to frontend document
@@ -72,7 +71,12 @@ export function Dashboard({
         // Load tasks
         const tasks = await getFormalizationTasks();
         const mappedTasks = tasks.map(mapTaskToChecklistItem);
-        setChecklist(mappedTasks);
+        // Ensure all IDs are unique
+        const uniqueTasks = mappedTasks.map((task, index) => ({
+          ...task,
+          id: task.id || `task-${index}-${Date.now()}`,
+        }));
+        setChecklist(uniqueTasks);
 
         // Load documents
         const docsResponse = await getDocuments();
@@ -118,13 +122,30 @@ export function Dashboard({
     loadData();
   }, []);
 
-  const toggleItem = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setChecklist((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: item.status === 'done' ? 'todo' : 'done' } : item))
-    );
+  const toggleItem = React.useCallback((id: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    
+    console.log('Toggling item with id:', id);
+    console.log('Current checklist:', checklist.map(item => ({ id: item.id, status: item.status })));
+    
+    setChecklist((prev) => {
+      const updated = prev.map((item) => {
+        // Strict comparison - only update if IDs match exactly
+        if (item.id === id) {
+          console.log('Updating item:', item.id, 'from', item.status, 'to', item.status === 'done' ? 'todo' : 'done');
+          return { ...item, status: item.status === 'done' ? 'todo' : 'done' };
+        }
+        // Return item unchanged
+        return item;
+      });
+      console.log('Updated checklist:', updated.map(item => ({ id: item.id, status: item.status })));
+      return updated;
+    });
     // TODO: Update task completion status in backend when endpoint is available
-  };
+  }, [checklist]);
 
   const uploadDoc = (id: string) => {
     // This will be handled by ChecklistItemDetails with real upload
@@ -134,7 +155,6 @@ export function Dashboard({
   const progress = checklist.length
     ? Math.round((checklist.filter((i) => i.status === 'done').length / checklist.length) * 100)
     : 0;
-  const isRisky = user?.caseType === 'needs_human' || formalizationStatus?.eligibilityLevel === 'not_eligible';
 
   const openDetails = (item: ChecklistItem) => {
     setSelectedItem(item);
@@ -220,57 +240,32 @@ export function Dashboard({
                   formalizationStatus.isEligible ? 'text-green-800' : 'text-orange-800'
                 }`}>
                   {formalizationStatus.isEligible
-                    ? 'Você está elegível para vender em programas públicos!'
-                    : `Elegibilidade: ${formalizationStatus.eligibilityLevel === 'partially_eligible' ? 'Parcial' : 'Não elegível'}`}
+                    ? 'Você pode vender para escolas e programas públicos!'
+                    : `Pode vender: ${formalizationStatus.eligibilityLevel === 'partially_eligible' ? 'Parcialmente' : 'Ainda não'}`}
                 </h3>
                 <p className={`text-sm mt-1 ${
                   formalizationStatus.isEligible ? 'text-green-700' : 'text-orange-700'
                 }`}>
-                  Pontuação: {formalizationStatus.score}/100
+                  Sua nota: {formalizationStatus.score}/100
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {isRisky && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6 flex items-start gap-4">
-            <AlertTriangle className="text-orange-600 h-6 w-6 shrink-0 mt-1" />
-            <div>
-              <h3 className="font-bold text-orange-800">Atenção: Seu caso possui complexidade</h3>
-              <p className="text-sm text-orange-700 mt-1">
-                {user?.riskFlags && user.riskFlags.length > 0 ? (
-                  <>
-                    Detectamos <strong>{user.riskFlags.join(', ')}</strong>. Isso geralmente exige RT (Responsável
-                    Técnico) ou aprovação sanitária específica.
-                  </>
-                ) : (
-                  'Seu caso pode exigir atenção especial. Consulte um especialista.'
-                )}
-              </p>
-              <button
-                onClick={onEscalate}
-                className="mt-3 text-sm bg-orange-100 text-orange-800 font-bold px-3 py-1.5 rounded hover:bg-orange-200 transition"
-              >
-                Ver Consultores Recomendados
-              </button>
-            </div>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white p-6 rounded-xl shadow-sm">
-            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Status Geral</p>
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Como está</p>
             <div className="flex items-center gap-2">
               <div className={`h-3 w-3 rounded-full ${progress === 100 ? 'bg-green-500' : 'bg-yellow-500'}`} />
               <span className="text-xl font-bold text-slate-800">
-                {progress === 100 ? 'Pronto para Venda' : 'Em Preparação'}
+                {progress === 100 ? 'Pronto para Vender' : 'Ainda preparando'}
               </span>
             </div>
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow-sm">
-            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Seu Progresso</p>
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Quanto já fez</p>
             <div className="flex items-center gap-3">
               <span className="text-2xl font-bold text-slate-800">{progress}%</span>
               <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -280,7 +275,7 @@ export function Dashboard({
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow-sm">
-            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Próxima Ação</p>
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Próximo passo</p>
             <p className="text-sm font-medium text-slate-700 truncate">
               {checklist.find((i) => i.status !== 'done')?.title || 'Tudo completo!'}
             </p>
@@ -294,7 +289,7 @@ export function Dashboard({
               activeTab === 'checklist' ? 'text-green-600 border-b-2 border-green-600' : 'text-slate-500'
             }`}
           >
-            Checklist de Tarefas
+            Lista de Tarefas
           </button>
           <button
             onClick={() => setActiveTab('docs')}
@@ -317,14 +312,21 @@ export function Dashboard({
                 }`}
               >
                 <div
-                  onClick={(e) => toggleItem(item.id, e)}
-                  className={`mt-1 h-6 w-6 rounded border-2 flex items-center justify-center transition-colors z-10 ${
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    toggleItem(item.id, e);
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className={`mt-1 h-6 w-6 rounded border-2 flex items-center justify-center transition-colors z-10 cursor-pointer ${
                     item.status === 'done'
                       ? 'bg-green-500 border-green-500 text-white'
                       : 'border-slate-300 text-transparent hover:border-green-400'
                   }`}
                 >
-                  <CheckCircle2 className="h-4 w-4" />
+                  {item.status === 'done' && <CheckCircle2 className="h-4 w-4" />}
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-start">

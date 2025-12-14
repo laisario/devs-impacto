@@ -34,7 +34,7 @@ export function LandingPage({
         </h1>
 
         <p className="text-lg text-slate-600 mb-10 max-w-2xl mx-auto">
-          Um assistente inteligente que organiza seus documentos, monta seu checklist e diz exatamente o que
+          Um assistente inteligente que organiza seus documentos, monta sua lista do que fazer e diz exatamente o que
           fazer para se regularizar.
         </p>
 
@@ -51,8 +51,8 @@ export function LandingPage({
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 w-full text-left">
           {[
             { title: 'Diagnóstico Rápido', desc: 'Responda perguntas simples e saiba seu status real.' },
-            { title: 'Checklist Personalizado', desc: 'Nada de listas genéricas. Passos focados na sua produção.' },
-            { title: 'Cofre de Documentos', desc: 'Guarde tudo em um lugar seguro e receba alertas de validade.' },
+            { title: 'Lista do que Fazer', desc: 'Nada de listas genéricas. Passos focados na sua produção.' },
+            { title: 'Cofre de Documentos', desc: 'Guarde tudo em um lugar seguro.' },
           ].map((feat) => (
             <div
               key={feat.title}
