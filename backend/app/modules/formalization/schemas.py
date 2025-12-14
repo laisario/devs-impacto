@@ -5,6 +5,7 @@ Pydantic models for formalization status and tasks.
 
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -113,3 +114,73 @@ class FormalizationStatusInDB(BaseModel):
     diagnosed_at: datetime
 
     model_config = {"populate_by_name": True}
+
+
+class TaskCompletionUpdate(BaseModel):
+    """Schema for updating task completion status."""
+
+    completed: bool = Field(..., description="Whether the task is completed")
+
+
+class FormalizationTaskCatalog(BaseModel):
+    """Task do catálogo (carregada do CSV)."""
+
+    code: str = Field(..., description="Código único da task")
+    title: str = Field(..., description="Título da task")
+    description: str = Field(..., description="Descrição detalhada da task")
+    why: str = Field(..., description="Por que esta task é necessária")
+    blocking: bool = Field(..., description="Se a task é bloqueante (obrigatória)")
+    estimated_time_days: int = Field(..., ge=0, description="Tempo estimado em dias")
+    conditional_on: str | None = Field(
+        None, description="Flag do onboarding que ativa esta task"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class FormalizationTaskUser(BaseModel):
+    """Instância de task por usuário."""
+
+    id: PyObjectId | None = Field(None, alias="_id")
+    user_id: PyObjectId = Field(..., description="ID do usuário")
+    task_code: str = Field(..., description="Código da task (referência ao catálogo)")
+    status: Literal["pending", "done", "skipped"] = Field(
+        default="pending", description="Status da task"
+    )
+    blocking: bool = Field(..., description="Se a task é bloqueante")
+    requirement_id: str | None = Field(
+        None, description="ID do requirement para geração de guia de IA"
+    )
+    created_at: datetime = Field(..., description="Data de criação")
+    updated_at: datetime = Field(..., description="Data de última atualização")
+
+    model_config = {"populate_by_name": True}
+
+
+class FormalizationTaskUserResponse(BaseModel):
+    """Schema para resposta de task do usuário (com dados do catálogo)."""
+
+    id: PyObjectId = Field(..., alias="_id")
+    user_id: PyObjectId
+    task_code: str
+    title: str
+    description: str
+    why: str
+    status: Literal["pending", "done", "skipped"]
+    blocking: bool
+    estimated_time_days: int
+    requirement_id: str | None = Field(
+        None, description="ID do requirement para geração de guia de IA"
+    )
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"populate_by_name": True}
+
+
+class TaskStatusUpdate(BaseModel):
+    """Schema para atualizar status da task."""
+
+    status: Literal["pending", "done", "skipped"] = Field(
+        ..., description="Novo status da task"
+    )

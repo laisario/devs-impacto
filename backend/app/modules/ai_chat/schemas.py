@@ -42,3 +42,4 @@ class ConversationResponse(BaseModel):
     updated_at: datetime = Field(..., description="Data de atualização")
 
     model_config = {"populate_by_name": True}
+

@@ -27,6 +27,10 @@ export const API_ENDPOINTS = {
   formalization: {
     status: '/formalization/status',
     tasks: '/formalization/tasks',
+    regenerateTasks: '/formalization/tasks/regenerate',
+    updateTaskStatus: (taskCode: string) => `/formalization/tasks/${taskCode}`,
+    // Legacy endpoint (kept for backward compatibility)
+    updateTaskCompletion: (taskId: string) => `/formalization/tasks/${taskId}/complete`,
   },
   ai: {
     guide: '/ai/formalization/guide',

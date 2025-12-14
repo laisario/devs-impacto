@@ -6,6 +6,10 @@ Calculates eligibility for selling to public programs based on onboarding answer
 from typing import Any
 
 from app.modules.onboarding.schemas import OnboardingQuestion, QuestionType
+from app.modules.formalization.producer_utils import (
+    is_formal_producer,
+    is_individual_producer,
+)
 
 
 def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
@@ -38,7 +42,7 @@ def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
     # Note: CPF is not checked here as it comes from login/auth
     has_dap_caf = responses.get("has_dap_caf", False)
     has_cnpj = responses.get("has_cnpj", False)
-    producer_type_pref = responses.get("producer_type", "").lower()
+    producer_type_pref = responses.get("producer_type")
     has_previous_public_sales = responses.get("has_previous_sales", False)
     has_bank_account = responses.get("has_bank_account", False)
     has_address_proof = responses.get("has_address_proof", False)
@@ -58,7 +62,7 @@ def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
         )
 
     # Type-specific requirements
-    is_formal = producer_type_pref in ["formal (cnpj)", "formal", "grupo formal (cnpj)"]
+    is_formal = is_formal_producer(producer_type_pref)
     if is_formal:
         if has_cnpj:
             requirements_met.append("CNPJ (para grupo formal)")
@@ -187,11 +191,8 @@ def generate_formalization_tasks(
 ) -> list[dict[str, Any]]:
     """
     Generate list of formalization tasks based on diagnosis AND onboarding answers.
-    
+
     Note: CNPJ tasks are only generated for formal producers (cooperatives/associations).
-    """
-    """
-    Generate list of formalization tasks based on diagnosis AND onboarding answers.
 
     Args:
         diagnosis: Result from calculate_eligibility()
@@ -212,8 +213,10 @@ def generate_formalization_tasks(
     tasks: list[dict[str, Any]] = []
     
     # Determine producer type from responses or profile
-    producer_type_pref = responses.get("producer_type", "").lower() if responses else ""
-    is_formal = producer_type_pref in ["formal (cnpj)", "formal", "grupo formal (cnpj)", "formal"]
+    producer_type_pref = responses.get("producer_type") if responses else None
+    # Check if producer is individual - if so, NEVER show CNPJ task
+    is_individual = is_individual_producer(producer_type_pref)
+    is_formal = is_formal_producer(producer_type_pref)
     
     # Mapear requirement_id para tasks (comum para ambos os caminhos)
     requirement_to_task = {
@@ -280,6 +283,10 @@ def generate_formalization_tasks(
         else:
             # Usar mapeamento normal quando há respostas
             for requirement_id, is_met in requirements_status.items():
+                # NUNCA gerar tarefa de CNPJ para produtores individuais
+                if requirement_id == "cnpj" and not is_formal:
+                    continue  # Skip CNPJ task for individual/informal producers
+                
                 if not is_met and requirement_id in requirement_to_task:
                     task_data = requirement_to_task[requirement_id].copy()
                     task_data["requirement_id"] = requirement_id
@@ -288,8 +295,9 @@ def generate_formalization_tasks(
     # Fallback para lógica antiga se não tiver questions (compatibilidade)
     else:
         # Determine producer type for fallback logic
-        producer_type_pref = responses.get("producer_type", "").lower() if responses else ""
-        is_formal = producer_type_pref in ["formal (cnpj)", "formal", "grupo formal (cnpj)", "formal"]
+        producer_type_pref = responses.get("producer_type") if responses else None
+        is_formal = is_formal_producer(producer_type_pref)
+        is_individual = is_individual_producer(producer_type_pref)
         
         # High priority tasks (blocking requirements)
         for req in diagnosis["requirements_missing"]:
@@ -305,8 +313,8 @@ def generate_formalization_tasks(
                     }
                 )
             elif "CNPJ" in req:
-                # Only generate CNPJ task for formal producers
-                if is_formal:
+                # Only generate CNPJ task for formal producers (NEVER for individual)
+                if is_formal and not is_individual:
                     tasks.append(
                         {
                             "task_id": "obtain_cnpj",
@@ -343,17 +351,6 @@ def generate_formalization_tasks(
                 }
             )
 
-    # Low priority tasks (nice to have)
-    if not responses.get("has_previous_sales", False):
-        tasks.append(
-            {
-                "task_id": "learn_public_programs",
-                "title": "Conhecer programas públicos",
-                "description": "Pesquise sobre programas como PNAE e PAA para entender o processo",
-                "category": "preparation",
-                "priority": "low",
-                "requirement_id": None,
-            }
-        )
+    # Removed "learn_public_programs" task - not useful, simplifies the checklist
 
     return tasks

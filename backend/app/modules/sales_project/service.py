@@ -246,3 +246,4 @@ Responda APENAS com JSON válido, sem texto adicional:
         if not doc:
             raise ValueError("Project not found")
         return SalesProjectInDB(**doc)
+

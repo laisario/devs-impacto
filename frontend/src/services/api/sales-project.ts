@@ -52,3 +52,4 @@ export async function getSalesProject(id: string): Promise<SalesProjectResponse>
     method: 'GET',
   });
 }
+

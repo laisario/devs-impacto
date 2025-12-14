@@ -10,11 +10,11 @@ import {
 import type { ChecklistItem, Document, UserProfile, DocumentType } from '../../domain/models';
 import { ChatWidget } from '../chat/ChatWidget';
 import { ChecklistItemDetails } from './components/ChecklistItemDetails';
-import { getFormalizationTasks, getFormalizationStatus } from '../../services/api/formalization';
+import { getFormalizationTasks, getFormalizationStatus, updateTaskStatus } from '../../services/api/formalization';
 import { getDocuments } from '../../services/api/documents';
 import { getProducerProfile } from '../../services/api/producer';
 import { ApiClientError } from '../../services/api/client';
-import type { FormalizationTaskResponse, DocumentResponse } from '../../services/api/types';
+import type { FormalizationTaskUserResponse, DocumentResponse } from '../../services/api/types';
 
 export function Dashboard({
   user,
@@ -38,16 +38,16 @@ export function Dashboard({
   const [formalizationStatus, setFormalizationStatus] = useState<{ isEligible: boolean; score: number; eligibilityLevel: string } | null>(null);
 
   // Map backend task to frontend checklist item
-  const mapTaskToChecklistItem = (task: FormalizationTaskResponse): ChecklistItem => ({
+  const mapTaskToChecklistItem = (task: FormalizationTaskUserResponse): ChecklistItem => ({
     id: task.id,
     title: task.title,
     description: task.description,
-    priority: task.priority,
-    status: task.completed ? 'done' : 'todo',
-    taskId: task.task_id,
-    category: task.category,
-    requirementId: task.requirement_id || undefined,
-    needUpload: task.need_upload || false,
+    priority: task.blocking ? 'high' : 'medium', // Map blocking to priority
+    status: task.status === 'done' ? 'done' : task.status === 'skipped' ? 'todo' : 'todo',
+    taskId: task.task_code, // Use task_code instead of task_id
+    category: 'document', // Default category (new system doesn't have category)
+    requirementId: task.requirement_id || undefined, // Use requirement_id for AI guide generation
+    needUpload: false, // New system doesn't track need_upload
   });
 
   // Map backend document to frontend document
@@ -123,25 +123,53 @@ export function Dashboard({
     loadData();
   }, []);
 
-  const toggleItem = React.useCallback((id: string, e?: React.MouseEvent) => {
+  const toggleItem = React.useCallback(async (id: string, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
       e.preventDefault();
     }
     
+    // Find the item to get taskId
+    const item = checklist.find((i) => i.id === id);
+    if (!item || !item.taskId) {
+      console.warn('Task not found or missing taskId:', id);
+      return;
+    }
+
+    // Optimistically update UI
+    const newStatus: 'todo' | 'doing' | 'done' = item.status === 'done' ? 'todo' : 'done';
     setChecklist((prev) => {
-      return prev.map((item) => {
-        // Strict comparison - only update if IDs match exactly
-        if (item.id === id) {
-          const newStatus: 'todo' | 'doing' | 'done' = item.status === 'done' ? 'todo' : 'done';
-          return { ...item, status: newStatus };
+      return prev.map((i) => {
+        if (i.id === id) {
+          return { ...i, status: newStatus };
         }
-        // Return item unchanged
-        return item;
+        return i;
       });
     });
-    // TODO: Update task completion status in backend when endpoint is available
-  }, []);
+
+    // Update in backend
+    try {
+      // Convert frontend status to backend status
+      const backendStatus: 'pending' | 'done' | 'skipped' = newStatus === 'done' ? 'done' : 'pending';
+      await updateTaskStatus(item.taskId, backendStatus);
+    } catch (err) {
+      // Revert on error
+      setChecklist((prev) => {
+        return prev.map((i) => {
+          if (i.id === id) {
+            return { ...i, status: item.status };
+          }
+          return i;
+        });
+      });
+      
+      if (err instanceof ApiClientError) {
+        setError(err.message || 'Erro ao atualizar tarefa. Tente novamente.');
+      } else {
+        setError('Erro ao atualizar tarefa. Tente novamente.');
+      }
+    }
+  }, [checklist]);
 
   const uploadDoc = (id: string) => {
     // This will be handled by ChecklistItemDetails with real upload
@@ -175,8 +203,10 @@ export function Dashboard({
           documents={documents}
           onBack={() => setSelectedItem(null)}
           onUploadDoc={uploadDoc}
-          onMarkDone={(id) => {
-            if (selectedItem.status !== 'done') toggleItem(id);
+          onMarkDone={async (id) => {
+            if (selectedItem.status !== 'done') {
+              await toggleItem(id);
+            }
             setSelectedItem(null);
           }}
         />

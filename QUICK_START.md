@@ -1,10 +1,17 @@
 # 🚀 Quick Start - Como Rodar o Sistema
 
-## Passo 1: Configurar OpenAI API Key
+## Pré-requisitos
+
+- Docker & Docker Compose
+- (Opcional) Chave da API OpenAI para funcionalidades de IA
+
+## Passo 1: Configurar OpenAI API Key (Opcional)
+
+Para usar as funcionalidades de IA (guia personalizado, chatbot), configure a chave da OpenAI:
 
 ### Opção A: Usando docker-compose.override.yml (Recomendado)
 
-Edite o arquivo `docker-compose.override.yml` e descomente/adicione:
+Crie o arquivo `docker-compose.override.yml` na raiz do projeto:
 
 ```yaml
 services:
@@ -56,42 +63,32 @@ docker-compose logs -f backend
 - **Backend API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
 
-## Funcionalidades GenAI Disponíveis
+## Funcionalidades Disponíveis
 
-Após configurar a OpenAI key, você terá acesso a:
-
+### Com OpenAI Key:
 1. ✅ **Guia Contextual Personalizado** - Guias adaptados ao seu perfil
 2. ✅ **Chatbot PNAE** - Assistente conversacional
 3. ✅ **Validação de Documentos** - Análise automática de DAP, comprovantes, etc.
 4. ✅ **Projeto de Venda** - Geração automática de projeto de venda
 
-## Sem OpenAI Key?
-
-O sistema funciona sem OpenAI key, mas as funcionalidades GenAI usarão respostas mockadas (para desenvolvimento/testes).
-
-**Para usar as funcionalidades GenAI reais, você PRECISA configurar a OpenAI key!**
-
-### O que funciona sem OpenAI:
+### Sem OpenAI Key (Modo Mock):
 - ✅ Onboarding
 - ✅ Checklist de tarefas
 - ✅ Upload de documentos
 - ✅ Dashboard básico
+- ⚠️ Funcionalidades de IA usarão respostas mockadas
 
-### O que PRECISA de OpenAI:
-- ❌ Guia Personalizado (usa mock)
-- ❌ Chatbot (usa mock)
-- ❌ Validação de Documentos (não valida)
-- ❌ Projeto de Venda (não gera)
+**Para usar as funcionalidades de IA reais, você PRECISA configurar a OpenAI key!**
 
 ## Verificar se está funcionando
 
-### 1. Verificar se os serviços estão rodando
+### 1. Verificar serviços
 
 ```bash
 docker-compose ps
 ```
 
-Deve mostrar `backend` e `frontend` como "Up".
+Deve mostrar `pnae-backend` e `pnae-frontend` como "Up".
 
 ### 2. Verificar logs
 
@@ -115,11 +112,23 @@ curl http://localhost:8000/health
 ### 4. Testar no navegador
 
 1. Abra http://localhost:5173
-2. Faça login (CPF: qualquer número válido, OTP: 123456)
+2. Faça login (telefone: qualquer número válido, OTP: 123456)
 3. Complete o onboarding
 4. No dashboard, clique em um item da checklist
 5. Clique em "Gerar Guia" - deve gerar um guia personalizado
 6. Use o chatbot (ícone de mensagem no canto inferior direito)
+
+## Popular Banco de Dados (Opcional)
+
+Para popular o banco com dados de exemplo:
+
+```bash
+# Popular perguntas de onboarding
+docker-compose exec backend python scripts/dev/seed_onboarding_questions.py
+
+# Popular dados de exemplo (usuários, perfis, documentos)
+docker-compose exec backend python scripts/dev/seeds.py
+```
 
 ## Troubleshooting
 
@@ -131,7 +140,7 @@ curl http://localhost:8000/health
 5. Teste a chave: `curl https://api.openai.com/v1/models -H "Authorization: Bearer sua-chave"`
 
 ### MongoDB não conecta?
-- O docker-compose já está configurado com MongoDB Atlas
+- O docker-compose está configurado com MongoDB Atlas
 - Se quiser usar local, mude `MONGODB_URI` no docker-compose.yml
 
 ### Frontend não conecta ao backend?
@@ -154,3 +163,25 @@ lsof -i :5173  # Frontend
 
 # Ou mude as portas no docker-compose.yml
 ```
+
+### Comandos Docker Úteis
+
+```bash
+# Parar todos os serviços
+docker-compose down
+
+# Parar e remover volumes (limpa banco)
+docker-compose down -v
+
+# Rebuild após mudanças
+docker-compose build --no-cache
+docker-compose up -d
+
+# Acessar shell do container backend
+docker-compose exec backend bash
+```
+
+## Próximos Passos
+
+- Veja [README.md](README.md) para visão geral do projeto
+- Veja [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md) para guia completo de desenvolvimento

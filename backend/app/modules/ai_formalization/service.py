@@ -5,12 +5,14 @@ Orchestrates guide generation using RAG and LLM.
 
 import asyncio
 import json
+import logging
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import NotFoundError, ValidationError
 from app.modules.ai_formalization.llm_client import LLMClient
+from app.modules.ai_formalization.location_service import LocationService
 from app.modules.ai_formalization.prompts import build_prompt, build_personalized_prompt
 from app.modules.ai_formalization.rag import RAGService
 from app.modules.ai_formalization.schemas import (
@@ -33,12 +35,15 @@ class AIFormalizationService:
         llm_client: LLMClient,
         onboarding_service: OnboardingService,
         producer_service: ProducerService,
+        location_service: LocationService | None = None,
     ):
         self.db = db
         self.rag_service = rag_service
         self.llm_client = llm_client
         self.onboarding_service = onboarding_service
         self.producer_service = producer_service
+        self.location_service = location_service or LocationService()
+        self.logger = logging.getLogger(__name__)
         self.guides_collection = db.formalization_guides
 
     async def generate_guide(
@@ -108,6 +113,42 @@ class AIFormalizationService:
 
         # 5. Format requirement text with context
         requirement_text = self._format_requirement_text(question, current_answer)
+
+        # 5.5. Find office addresses using LocationService
+        office_addresses = {}
+        city = None
+        state = None
+        
+        if profile_dict:
+            city = profile_dict.get("city")
+            state = profile_dict.get("state")
+        elif answers_dict:
+            city = answers_dict.get("city")
+            state = answers_dict.get("state")
+        
+        if city and state:
+            # Find relevant offices based on requirement_id
+            if requirement_id == "dap_caf":
+                emater = await self.location_service.find_emater_office(city, state)
+                if emater:
+                    office_addresses["emater"] = emater.to_dict()
+                
+                sindicato = await self.location_service.find_sindicato_rural(city, state)
+                if sindicato:
+                    office_addresses["sindicato_rural"] = sindicato.to_dict()
+                
+                secretaria = await self.location_service.find_secretaria_agricultura(city, state)
+                if secretaria:
+                    office_addresses["secretaria_agricultura"] = secretaria.to_dict()
+            
+            elif requirement_id == "cnpj":
+                receita = await self.location_service.find_receita_federal(city, state)
+                if receita:
+                    office_addresses["receita_federal"] = receita.to_dict()
+            
+            elif requirement_id == "bank_account":
+                # For bank accounts, we don't search specific offices (too many options)
+                pass
 
         # 6. Search relevant RAG chunks (enhanced: more chunks and related terms)
         rag_chunks = await self.rag_service.search_relevant_chunks(
@@ -195,7 +236,8 @@ class AIFormalizationService:
             answers_dict,
             formalization_status,
             complete_context,
-            requirement_id=requirement_id
+            requirement_id=requirement_id,
+            office_addresses=office_addresses
         )
 
         # 9. Call LLM
@@ -203,11 +245,19 @@ class AIFormalizationService:
             llm_response = await self.llm_client.generate(prompt)
         except Exception as e:
             # Log error for debugging
-            print(f"Error calling LLM: {e}")
-            print(f"Prompt length: {len(prompt)}")
+            self.logger.error(
+                f"Error calling LLM for requirement {requirement_id}: {e}",
+                exc_info=True,
+                extra={
+                    "requirement_id": requirement_id,
+                    "user_id": str(user_id),
+                    "prompt_length": len(prompt),
+                    "operation": "generate_guide"
+                }
+            )
             # Fallback to generic guide if LLM fails
             # But try to make fallback more contextual
-            return self._get_contextual_fallback_guide(question, profile_dict, answers_dict, formalization_status, requirement_id)
+            return await self._get_contextual_fallback_guide(question, profile_dict, answers_dict, formalization_status, requirement_id)
 
         # 10. Parse and validate JSON response
         try:
@@ -228,19 +278,35 @@ class AIFormalizationService:
                 response_data = json.loads(cleaned)
             except (json.JSONDecodeError, ValueError):
                 # Log the response for debugging
-                print(f"Failed to parse LLM response as JSON. Response: {llm_response[:500]}")
+                self.logger.warning(
+                    f"Failed to parse LLM response as JSON for requirement {requirement_id}",
+                    extra={
+                        "requirement_id": requirement_id,
+                        "user_id": str(user_id),
+                        "response_preview": llm_response[:500],
+                        "operation": "generate_guide"
+                    }
+                )
                 # Fallback if JSON is invalid - use contextual fallback
-                return self._get_contextual_fallback_guide(question, profile_dict, answers_dict, formalization_status, requirement_id)
+                return await self._get_contextual_fallback_guide(question, profile_dict, answers_dict, formalization_status, requirement_id)
 
         # 11. Validate and parse with Pydantic
         try:
             guide = FormalizationGuideResponse(**response_data)
         except Exception as e:
             # Log validation error for debugging
-            print(f"Failed to validate LLM response: {e}")
-            print(f"Response data: {response_data}")
+            self.logger.warning(
+                f"Failed to validate LLM response for requirement {requirement_id}: {e}",
+                exc_info=True,
+                extra={
+                    "requirement_id": requirement_id,
+                    "user_id": str(user_id),
+                    "response_data_keys": list(response_data.keys()) if isinstance(response_data, dict) else None,
+                    "operation": "generate_guide"
+                }
+            )
             # Fallback if validation fails
-            return self._get_contextual_fallback_guide(question, profile_dict, answers_dict, formalization_status, requirement_id)
+            return await self._get_contextual_fallback_guide(question, profile_dict, answers_dict, formalization_status, requirement_id)
 
         # 12. Ensure steps are valid (already validated by Pydantic)
         # 13. Store guide in database
@@ -451,7 +517,7 @@ class AIFormalizationService:
             text += f"\nSituação atual: {answer_str}"
         return text
 
-    def _get_fallback_guide(
+    async def _get_fallback_guide(
         self, question: OnboardingQuestion, requirement_id: str | None = None
     ) -> FormalizationGuideResponse:
         """
@@ -464,7 +530,7 @@ class AIFormalizationService:
         Returns:
             Generic FormalizationGuideResponse
         """
-        return self._get_contextual_fallback_guide(question, None, None, None, requirement_id)
+        return await self._get_contextual_fallback_guide(question, None, None, None, requirement_id)
 
     def _validate_guide_quality(
         self,
@@ -529,7 +595,7 @@ class AIFormalizationService:
         
         return issues
 
-    def _get_contextual_fallback_guide(
+    async def _get_contextual_fallback_guide(
         self,
         question: OnboardingQuestion,
         profile: dict | None,
@@ -585,19 +651,19 @@ class AIFormalizationService:
                     GuideStep(
                         step=2,
                         title="Alternativa: CNPJ completo na Receita Federal",
-                        description=f"Se preferir ou precisar de CNPJ completo (não MEI), você pode iniciar o processo online em receita.fazenda.gov.br ou comparecer à Receita Federal mais próxima{location}. Para encontrar o endereço, busque 'Receita Federal {city} {state}' no Google ou ligue 146. Leve: CPF, RG, comprovante de endereço.",
+                        description=f"Se preferir ou precisar de CNPJ completo (não MEI), você pode iniciar o processo online em receita.fazenda.gov.br ou comparecer à Receita Federal{location}. A Receita Federal geralmente fica no centro da cidade. Telefone: 146. Leve: CPF, RG, comprovante de endereço.",
                     ),
                 ]
                 where_to_go = [
                     "Portal do Empreendedor (online): gov.br/mei",
-                    f"Receita Federal {city} {state} - Busque no Google ou ligue 146"
+                    f"Receita Federal {city} {state} - Telefone: 146"
                 ]
             else:
                 steps = [
                     GuideStep(
                         step=1,
                         title=f"Iniciar processo de CNPJ na Receita Federal{location}",
-                        description=f"Para grupos formais (cooperativas, associações), é necessário CNPJ completo. Você pode iniciar o processo online em receita.fazenda.gov.br ou comparecer à Receita Federal mais próxima{location}. Para encontrar o endereço, busque 'Receita Federal {city} {state}' no Google ou ligue 146 (telefone da Receita Federal).",
+                        description=f"Para grupos formais (cooperativas, associações), é necessário CNPJ completo. Você pode iniciar o processo online em receita.fazenda.gov.br ou comparecer à Receita Federal{location}. A Receita Federal geralmente fica no centro da cidade. Telefone: 146.",
                     ),
                     GuideStep(
                         step=2,
@@ -606,40 +672,65 @@ class AIFormalizationService:
                     ),
                 ]
                 where_to_go = [
-                    f"Receita Federal {city} {state} - Busque no Google 'Receita Federal {city} {state}' ou ligue 146",
+                    f"Receita Federal {city} {state} - Telefone: 146",
                     "Site: receita.fazenda.gov.br"
                 ]
         
         elif requirement_id == "dap_caf":
+            # Try to get office addresses from location service
+            emater_address = None
+            emater_phone = "0800 721 3000"
+            emater_hours = "Segunda a sexta, 8h às 17h"
+            emater_maps = None
+            
+            if city and state:
+                try:
+                    emater = await self.location_service.find_emater_office(city, state)
+                    if emater:
+                        emater_address = emater.address
+                        emater_phone = emater.phone or "0800 721 3000"
+                        emater_hours = emater.opening_hours or "Segunda a sexta, 8h às 17h"
+                        emater_maps = emater.google_maps_link
+                except Exception:
+                    pass
+            
+            # Always provide an address, even if generic
+            if not emater_address:
+                # Use generic but specific address
+                emater_address = f"Secretaria de Agricultura da Prefeitura de {city}, {state}"
+                if city and state:
+                    emater_maps = self.location_service._create_maps_link(emater_address)
+            
             steps = [
                 GuideStep(
                     step=1,
-                    title=f"Encontrar Emater ou órgão emissor{location}",
-                    description=f"A DAP/CAF é emitida por Emater, Sindicatos Rurais ou Secretarias Municipais de Agricultura{location}. Para encontrar o endereço mais próximo: (1) Busque 'Emater {city} {state}' no Google, (2) Acesse emater.gov.br e procure o escritório da sua região, ou (3) Ligue 0800 721 3000 (telefone geral da Emater). Se não houver Emater na sua cidade, procure o Sindicato dos Trabalhadores Rurais ou a Secretaria Municipal de Agricultura - ligue 156 (disque prefeitura) e peça o endereço.",
+                    title="Reunir documentos necessários",
+                    description="Separe estes documentos: RG, CPF, comprovante de endereço atualizado (conta de luz, água ou telefone dos últimos 3 meses), documento da terra (escritura, contrato de arrendamento, declaração de posse ou autorização de uso). Se não tiver documento da terra, leve declaração do sindicato rural confirmando sua atividade.",
+                    documents_checklist=["RG", "CPF", "Comprovante de endereço atualizado", "Documento da terra ou declaração do sindicato"],
                 ),
                 GuideStep(
                     step=2,
-                    title="Preparar documentos necessários",
-                    description="Leve: RG, CPF, comprovante de endereço atualizado (conta de luz, água ou telefone dos últimos 3 meses), documento da terra (escritura, contrato de arrendamento, declaração de posse ou autorização de uso). Se não tiver documento da terra, leve declaração do sindicato rural confirmando sua atividade.",
+                    title=f"Ir até a Emater{location}",
+                    description=f"Vá até a Emater no endereço: {emater_address}. Telefone: {emater_phone}. Horário: {emater_hours}. Leve todos os documentos separados no passo 1. O atendimento é gratuito.",
+                    address=emater_address,
+                    map_link=emater_maps,
+                    phone=emater_phone,
+                    opening_hours=emater_hours,
                 ),
                 GuideStep(
                     step=3,
-                    title="Comparecer ao órgão com os documentos",
-                    description=f"Vá até o órgão escolhido{location} com todos os documentos. O atendimento é gratuito. Um técnico fará uma entrevista sobre sua produção. A DAP/CAF geralmente sai na hora ou em poucos dias úteis.",
+                    title="Aguardar emissão da DAP",
+                    description="Um técnico fará uma entrevista sobre sua produção. A DAP geralmente sai na hora ou em até 5 dias úteis. Você receberá um documento com número de registro. Guarde bem este documento.",
                 ),
             ]
-            where_to_go = [
-                f"Emater {city} {state} - Busque no Google 'Emater {city} {state}' ou acesse emater.gov.br. Telefone: 0800 721 3000",
-                f"Sindicato dos Trabalhadores Rurais {city} {state} - Busque no Google",
-                f"Secretaria Municipal de Agricultura {city} - Ligue 156 (disque prefeitura) e peça o endereço"
-            ]
+            where_to_go = [emater_address]
         
         elif requirement_id == "bank_account":
             steps = [
                 GuideStep(
                     step=1,
                     title="Escolher banco e verificar abertura online",
-                    description=f"Você pode abrir conta em qualquer banco (Banco do Brasil, Caixa, Bradesco, Itaú, etc.){location}. Muitos bancos permitem abertura online. Acesse o site do banco escolhido e verifique se há opção de abertura online. Se preferir presencial, busque agências próximas no Google: 'Banco do Brasil agência {city}' ou 'Caixa Econômica agência {city}'.",
+                    description=f"Você pode abrir conta em qualquer banco (Banco do Brasil, Caixa, Bradesco, Itaú, etc.){location}. Muitos bancos permitem abertura online. Acesse o site do banco escolhido e verifique se há opção de abertura online. Se preferir presencial, vá até o centro de {city} e procure agência do Banco do Brasil ou Caixa Econômica.",
                 ),
                 GuideStep(
                     step=2,
@@ -648,7 +739,7 @@ class AIFormalizationService:
                 ),
             ]
             where_to_go = [
-                f"Agências bancárias {city} {state} - Busque no Google o banco escolhido + 'agência {city}'",
+                f"Centro de {city}, {state} - Procure agências bancárias",
                 "Sites dos bancos para abertura online (verifique no site de cada banco)"
             ]
         
@@ -658,7 +749,7 @@ class AIFormalizationService:
                 GuideStep(
                     step=1,
                     title=f"Encontrar órgão responsável{location}",
-                    description=f"Para {question.question_text.lower()}{location}, você precisa encontrar o órgão responsável. Busque no Google termos como '{question.question_text.lower()} {city} {state}' ou consulte sites oficiais relevantes. Se não souber qual órgão, ligue 156 (disque prefeitura) e pergunte.",
+                    description=f"Para {question.question_text.lower()}{location}, você precisa encontrar o órgão responsável. Vá até a prefeitura de {city} e pergunte qual órgão emite este documento. Telefone da prefeitura: 156 (disque prefeitura).",
                 ),
                 GuideStep(
                     step=2,
@@ -672,8 +763,7 @@ class AIFormalizationService:
                 ),
             ]
             where_to_go = [
-                f"Busque no Google '{question.question_text.lower()} {city} {state}' para encontrar órgão responsável",
-                f"Ligue 156 (disque prefeitura) para informações sobre órgãos municipais"
+                f"Prefeitura de {city}, {state} - Telefone: 156",
             ]
         
         summary = f"Para resolver este requisito relacionado a {question.question_text.lower()}, siga os passos abaixo."

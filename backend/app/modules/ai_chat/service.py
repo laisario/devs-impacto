@@ -245,3 +245,4 @@ Responda em português brasileiro, de forma amigável e empática."""
         await self.conversations_collection.update_one({"_id": conv_oid}, {"$set": {"updated_at": now}})
 
         return assistant_message, conv_id
+

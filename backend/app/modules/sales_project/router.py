@@ -81,3 +81,4 @@ async def get_project(
     if not project:
         raise NotFoundError("Sales project", project_id)
     return SalesProjectResponse(**project.model_dump(by_alias=True))
+

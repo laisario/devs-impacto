@@ -4,6 +4,7 @@ Endpoints for producer profile management.
 """
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, Depends, status
 
@@ -17,6 +18,7 @@ from app.modules.producers.schemas import (
 from app.modules.producers.service import ProducerService
 
 router = APIRouter(prefix="/producer-profile", tags=["producers"])
+logger = logging.getLogger(__name__)
 
 
 async def get_producer_service() -> ProducerService:
@@ -95,7 +97,11 @@ async def upsert_producer_profile(
             asyncio.create_task(generate_guides_async(user_id))
     except Exception as e:
         # Don't fail the request if guide generation fails
-        print(f"Error setting up guide generation: {e}")
+        logger.warning(
+            f"Error setting up guide generation for user {user_id}: {e}",
+            exc_info=True,
+            extra={"user_id": user_id, "operation": "upsert_producer_profile"}
+        )
     
     return ProducerProfileResponse(**profile.model_dump(by_alias=True))
 
@@ -125,9 +131,11 @@ async def get_producer_profile(
 
         return ProducerProfileResponse(**profile.model_dump(by_alias=True))
     except Exception as e:
-        import traceback
-        print(f"Error in get_producer_profile endpoint: {e}")
-        print(traceback.format_exc())
+        logger.error(
+            f"Error in get_producer_profile endpoint for user {user_id}: {e}",
+            exc_info=True,
+            extra={"user_id": user_id, "operation": "get_producer_profile"}
+        )
         raise
 
 

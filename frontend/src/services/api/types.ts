@@ -28,7 +28,8 @@ export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 // Auth types
 export interface LoginRequest {
-  cpf: string;
+  email: string;
+  password: string;
 }
 
 export interface TokenResponse {
@@ -183,8 +184,25 @@ export interface FormalizationTaskResponse {
   completed_at?: string | null;
   created_at: string;
   requirement_id?: string | null;
-  need_upload?: boolean;
 }
+
+// New CSV-based task system
+export interface FormalizationTaskUserResponse {
+  id: string;
+  user_id: string;
+  task_code: string;
+  title: string;
+  description: string;
+  why: string;
+  status: 'pending' | 'done' | 'skipped';
+  blocking: boolean;
+  estimated_time_days: number;
+  requirement_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TaskStatus = 'pending' | 'done' | 'skipped';
 
 // AI Guide types
 export interface GuideGenerationRequest {
@@ -195,6 +213,11 @@ export interface GuideStep {
   step: number;
   title: string;
   description: string;
+  documents_checklist?: string[] | null;
+  address?: string | null;
+  map_link?: string | null;
+  phone?: string | null;
+  opening_hours?: string | null;
 }
 
 export interface FormalizationGuideResponse {

@@ -93,3 +93,4 @@ class SalesProjectInDB(BaseModel):
     updated_at: datetime
 
     model_config = {"populate_by_name": True}
+

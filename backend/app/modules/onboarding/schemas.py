@@ -78,6 +78,18 @@ class OnboardingQuestion(BaseModel):
         default=False,
         description="Se True, permite seleção múltipla para perguntas do tipo choice. A resposta será um array de strings.",
     )
+    sets_flag: str | None = Field(
+        None,
+        description="Flag do producer_profile que esta pergunta popula (ex: has_cpf, has_bank_account)",
+    )
+    affects_task: str | None = Field(
+        None,
+        description="Task code que esta pergunta afeta (ex: HAS_CPF, HAS_BANK_ACCOUNT)",
+    )
+    step: str | None = Field(
+        None,
+        description="Etapa do onboarding (ex: identity_1, documents_1)",
+    )
 
 
 class OnboardingStatusResponse(BaseModel):

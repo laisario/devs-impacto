@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from './config';
 import type {
   DocumentCreate,
   DocumentResponse,
+  DocumentType,
   PaginatedResponse,
   PresignRequest,
   PresignResponse,
@@ -57,7 +58,7 @@ export async function getDocument(id: string): Promise<DocumentResponse> {
  */
 export async function uploadDocument(
   file: File,
-  docType: string
+  docType: DocumentType
 ): Promise<DocumentResponse> {
   // Step 1: Get presigned URL
   const presignResponse = await presignDocument({
@@ -76,7 +77,7 @@ export async function uploadDocument(
 
   // Step 3: Register document metadata
   return createDocument({
-    doc_type: docType as any,
+    doc_type: docType,
     file_url: presignResponse.file_url,
     file_key: presignResponse.file_key,
     original_filename: file.name,

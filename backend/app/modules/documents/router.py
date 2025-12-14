@@ -4,6 +4,7 @@ Endpoints for document upload and management (Envelope 01).
 """
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, Depends, Query, status
 
@@ -140,10 +141,11 @@ async def validate_document_async(
         )
     except Exception as e:
         # Log error but don't fail - validation is optional
-        import traceback
-
-        print(f"Error in background document validation: {e}")
-        print(traceback.format_exc())
+        logger.error(
+            f"Error in background document validation for document {doc_id}: {e}",
+            exc_info=True,
+            extra={"document_id": doc_id, "operation": "validate_document_background"}
+        )
 
 
 @router.get(

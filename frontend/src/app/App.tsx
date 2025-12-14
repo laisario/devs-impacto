@@ -5,8 +5,12 @@ import { LandingPage } from '../features/landing/LandingPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow';
 import { Dashboard } from '../features/dashboard/Dashboard';
+import { GuidedFlow } from '../features/guided-flow/GuidedFlow';
 import { EscalationPage } from '../features/escalation/EscalationPage';
 import { getOnboardingStatus } from '../services/api/onboarding';
+
+// Feature flag: Set to false to use old dashboard, true for new guided flow
+const USE_GUIDED_FLOW = true;
 
 function AppContent() {
   const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -116,6 +120,13 @@ function AppContent() {
       setView('login');
       return null;
     }
+    
+    // Use new guided flow if feature flag is enabled
+    if (USE_GUIDED_FLOW) {
+      return <GuidedFlow user={user} onLogout={handleLogout} />;
+    }
+    
+    // Otherwise use old dashboard
     return (
       <Dashboard
         user={user}

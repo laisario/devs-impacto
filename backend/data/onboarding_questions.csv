@@ -1,0 +1,15 @@
+step,question,answer_type,options,sets_flag,affects_task,requirement_id
+identity_1,Qual é o seu nome completo ou razão social?,text,,name,,
+identity_2,Qual é o seu endereço completo?,text,,address,,
+identity_3,Em qual cidade você está localizado?,text,,city,,
+identity_4,Qual é o seu estado (UF)?,text,,state,,
+identity_5,Você produz alimentos?,single_choice,"sim|não",produces_food,,
+identity_6,Você produz sozinho ou em grupo?,single_choice,"sozinho|grupo",producer_mode,,
+production_1,O que você produz?,multi_choice,"frutas|hortaliças|grãos|ovos|leite|derivados|processados|outros",production_types,PRODUCTION_IS_ELIGIBLE,
+production_2,Você produz alimentos caseiros ou processados?,single_choice,"caseiros|processados",has_processed_foods,PRODUCTION_IS_ELIGIBLE,
+documents_1,Você tem CPF?,single_choice,"sim|não",has_cpf,HAS_CPF,has_cpf
+documents_2,Você já tem cadastro como agricultor familiar?,single_choice,"sim|não",has_family_farmer_registration,HAS_FAMILY_FARMER_REGISTRATION,dap_caf
+documents_3,Você tem conta bancária?,single_choice,"sim|não",has_bank_account,HAS_BANK_ACCOUNT,bank_statement
+goal_1,Você quer vender alimentos para escolas?,single_choice,"sim|não",wants_to_sell_to_school,SALES_PROJECT_READY,
+experience_1,Você já tentou vender para a prefeitura antes?,single_choice,"sim|não",has_public_sales_experience,,
+preferences_1,Você prefere receber ajuda por áudio?,single_choice,"sim|não",prefers_audio,,

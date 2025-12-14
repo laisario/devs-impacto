@@ -19,8 +19,45 @@ DOCUMENTOS E TAREFAS:
 REQUISITO ESPECÍFICO:
 {requirement}
 
+FOCO CRÍTICO - ESTE GUIA É APENAS PARA ESTE REQUISITO:
+- Você está gerando um guia APENAS para: {requirement}
+- NÃO mencione outros requisitos (CNPJ, conta bancária, etc.) neste guia
+- Cada passo deve ser uma ação GRANULAR e específica para completar APENAS este requisito
+- Se o passo envolve ir a um local:
+  * SEMPRE use os endereços fornecidos na seção "ENDEREÇOS DISPONÍVEIS" abaixo
+  * Se não houver endereço disponível, use conhecimento geral para fornecer endereço específico baseado na cidade/estado
+  * NUNCA peça ao usuário para "buscar no Google", "ligar para descobrir" ou "pesquisar"
+  * Forneça endereço COMPLETO (rua, número, bairro, cidade, CEP) diretamente
+  * Gere link Google Maps: https://www.google.com/maps/search/?api=1&query=[endereço_encoded]
+  * Inclua telefone se disponível
+  * Inclua horário de funcionamento se disponível
+- Se o passo envolve documentos:
+  * Liste EXATAMENTE quais documentos são necessários
+  * Use campo documents_checklist
+- Se o passo tem prazo:
+  * Seja ESPECÍFICO: "na hora", "até 5 dias úteis", "15 minutos"
+
+ENDEREÇOS DISPONÍVEIS (use estes endereços, não peça ao usuário buscar):
+{office_addresses}
+
+Se um endereço não estiver disponível acima, use conhecimento geral para fornecer endereço específico baseado na cidade/estado. NUNCA peça ao usuário para "buscar no Google" ou "ligar para descobrir".
+
 DOCUMENTAÇÃO OFICIAL RELEVANTE (RAG):
 {rag_chunks_enhanced}
+
+LINGUAGEM SIMPLES - PRINCÍPIOS DA ENAP (OBRIGATÓRIO):
+- Frases curtas: máximo 20 palavras por frase
+- Uma ideia por frase
+- Verbos no imperativo: "Vá", "Leve", "Peça" (não "Você deve ir", "É necessário levar")
+- Palavras comuns: use "ir" não "comparecer", "documento" não "certidão", "pegar" não "obter"
+- Ordem direta: "Você vai até a Emater" (não "Até a Emater você vai")
+- Use "você" para aproximar do leitor
+- Evite siglas: explique primeiro, depois use (ex: "DAP (Declaração de Aptidão ao Pronaf)")
+- Evite voz passiva: "A DAP é emitida" → "A Emater emite a DAP"
+- Evite negativas quando possível: "Não precisa de CNPJ" → "CNPJ não é necessário"
+- Evite jargões técnicos: explique termos técnicos quando necessário
+- Use números por extenso para valores pequenos: "três documentos" não "3 documentos"
+- Evite abreviações: "você" não "vc", "com" não "c/"
 
 CONHECIMENTO ESTRUTURADO - USE ESTAS INFORMAÇÕES:
 
@@ -107,12 +144,17 @@ INSTRUÇÕES CRÍTICAS - SEJA HIPERESPECÍFICO:
 
 SAÍDA JSON:
 {{
-  "summary": "Resumo do que precisa ser feito, considerando o que já foi feito. Mencione nome do produtor e produtos específicos.",
+  "summary": "Resumo do que precisa ser feito APENAS para este requisito, considerando o que já foi feito. Mencione nome do produtor e produtos específicos.",
   "steps": [
     {{
       "step": 1,
-      "title": "Título do passo COM LOCALIZAÇÃO ESPECÍFICA (ex: 'Obter DAP na Emater de [CIDADE], [ESTADO]')",
-      "description": "Descrição HIPERESPECÍFICA: endereço completo, telefone, horário, como chegar, documentos EXATOS a levar (apenas o que falta), prazos específicos. Seja literalmente específico - o produtor deve saber EXATAMENTE onde ir."
+      "title": "Título do passo GRANULAR e específico (ex: 'Reunir documentos necessários' ou 'Ir até Emater de [CIDADE], [ESTADO]')",
+      "description": "Descrição HIPERESPECÍFICA do que fazer neste passo. Seja literalmente específico.",
+      "documents_checklist": ["RG", "CPF", "Comprovante de endereço"] ou null,
+      "address": "Endereço COMPLETO (rua, número, bairro, cidade, CEP)" ou null,
+      "map_link": "https://www.google.com/maps/search/?api=1&query=[endereço_encoded]" ou null,
+      "phone": "(XX) XXXX-XXXX" ou null,
+      "opening_hours": "Segunda a sexta, 8h às 17h" ou null
     }}
   ],
   "estimated_time_days": 7,
@@ -120,7 +162,13 @@ SAÍDA JSON:
   "confidence_level": "high"
 }}
 
-IMPORTANTE: Para "where_to_go", forneça endereços COMPLETOS, não apenas nomes genéricos. Se não souber o endereço exato, indique a cidade mais próxima e peça para o produtor ligar antes para confirmar endereço e horário."""
+IMPORTANTE:
+- Cada passo deve ser uma ação GRANULAR e específica
+- Se o passo envolve documentos, use documents_checklist com lista exata
+- Se o passo envolve ir a um local, SEMPRE forneça address e map_link
+- Para map_link: use formato https://www.google.com/maps/search/?api=1&query=[endereço_completo_encoded]
+- Para rota: https://www.google.com/maps/dir/[endereço_origem]/[endereço_destino]
+- Se não souber endereço exato, forneça instruções claras de como encontrar e deixe address/map_link como null"""
 
 AGENT_SYSTEM_PROMPT = ENHANCED_AGENT_SYSTEM_PROMPT  # Keep for backward compatibility
 
@@ -455,64 +503,120 @@ def build_prompt(
     chunks_text = format_rag_chunks(rag_chunks)
 
     return AGENT_SYSTEM_PROMPT.format(
-        producer_profile=profile_text,
+        producer_profile_full=profile_text,
+        formalization_status_detailed="",
+        completed_vs_pending="",
         requirement=requirement_text,
-        rag_chunks=chunks_text,
+        office_addresses="",
+        rag_chunks_enhanced=chunks_text,
     )
 
 
-def _get_requirement_specific_instructions(requirement_id: str, producer_type: str | None = None) -> str:
+def _get_map_link_instructions(city: str | None, state: str | None) -> str:
+    """
+    Get instructions for generating Google Maps links.
+    
+    Args:
+        city: City name
+        state: State abbreviation
+    
+    Returns:
+        String with instructions for generating map links
+    """
+    if city and state:
+        return f"""
+INSTRUÇÕES PARA LINKS DE MAPAS:
+- Para busca simples: https://www.google.com/maps/search/?api=1&query=[endereço_completo_encoded]
+- Para rota: https://www.google.com/maps/dir/[endereço_origem]/[endereço_destino]
+- Exemplo: Se o endereço for "Rua Principal, 123, Centro, {city}/{state}", o link seria:
+  https://www.google.com/maps/search/?api=1&query=Rua+Principal+123+Centro+{city}+{state}
+- Sempre encode espaços como + e caracteres especiais como %XX
+- Se não souber endereço exato, deixe map_link como null e forneça instruções de como encontrar
+"""
+    return """
+INSTRUÇÕES PARA LINKS DE MAPAS:
+- Para busca simples: https://www.google.com/maps/search/?api=1&query=[endereço_completo_encoded]
+- Para rota: https://www.google.com/maps/dir/[endereço_origem]/[endereço_destino]
+- Sempre encode espaços como + e caracteres especiais como %XX
+- Se não souber endereço exato, deixe map_link como null e forneça instruções de como encontrar
+"""
+
+
+def _get_requirement_specific_instructions(requirement_id: str, producer_type: str | None = None, city: str | None = None, state: str | None = None) -> str:
     """
     Get specific instructions for a requirement based on requirement_id.
     
     Args:
         requirement_id: The requirement ID (e.g., "cnpj", "dap_caf")
         producer_type: Producer type (individual, formal, informal)
+        city: City name for location-specific instructions
+        state: State abbreviation for location-specific instructions
     
     Returns:
         String with specific instructions for the requirement
     """
+    map_instructions = _get_map_link_instructions(city, state)
+    
     instructions_map = {
-        "cnpj": """
-IMPORTANTE - CNPJ/Formalização:
-- Se o produtor for INDIVIDUAL: SEMPRE explique que pode abrir MEI online em gov.br/mei
-  * MEI é gratuito, 100% online, leva ~15 minutos
-  * Não precisa ir a lugar nenhum
-  * CNPJ sai na hora
-  * Permite emitir notas fiscais para programas públicos
-  * Mencione esta opção PRIMEIRO, antes de qualquer outra
-- Se for grupo FORMAL: Explique processo de CNPJ completo na Receita Federal
-  * Pode ser iniciado online em receita.fazenda.gov.br
-  * Pode precisar comparecer presencialmente dependendo do caso
-  * Forneça endereço da Receita Federal mais próxima ou instruções de como encontrar
+        "cnpj": f"""
+IMPORTANTE - CNPJ/Formalização (ESTE GUIA É APENAS PARA CNPJ):
+- Este guia é APENAS para obter CNPJ. NÃO mencione outros requisitos.
+- Se o produtor for INDIVIDUAL: 
+  * Passo 1: Reunir documentos (CPF, título de eleitor ou recibo de declaração de imposto de renda)
+  * Passo 2: Acessar gov.br/mei e fazer cadastro online (100% online, ~15 minutos, CNPJ sai na hora)
+  * Não precisa de address/map_link pois é online
+- Se for grupo FORMAL: 
+  * Passo 1: Reunir documentos (CPF dos responsáveis, RG, comprovante de endereço da sede, estatuto)
+  * Passo 2: Iniciar processo online em receita.fazenda.gov.br OU comparecer à Receita Federal
+  * Se presencial: forneça address completo e map_link da Receita Federal mais próxima
   * Telefone: 146
 - SEMPRE mencione a opção online primeiro quando disponível
-- SEMPRE forneça endereço específico ou instruções claras de como encontrar o órgão
+{map_instructions}
         """,
-        "dap_caf": """
-IMPORTANTE - DAP/CAF:
-- Mencione os órgãos que emitem: Emater, Sindicatos Rurais, Secretarias Municipais de Agricultura
-- Forneça endereço específico ou instruções de como encontrar:
-  * "Busque 'Emater [CIDADE] [ESTADO]' no Google"
-  * "Acesse emater.gov.br e procure o escritório da sua região"
-  * "Ligue 156 (disque prefeitura) e peça o endereço da Secretaria de Agricultura"
-- Telefone geral Emater: 0800 721 3000
-- Mencione se há agendamento online (alguns locais têm)
-- Processo geralmente é presencial, mas pode ter agendamento online
+        "dap_caf": f"""
+IMPORTANTE - DAP/CAF (ESTE GUIA É APENAS PARA DAP/CAF):
+- Este guia é APENAS para obter DAP/CAF. NÃO mencione outros requisitos.
+- Passo 1: Reunir documentos necessários
+  * Use documents_checklist: ["RG", "CPF", "Comprovante de endereço atualizado (conta de luz, água ou telefone dos últimos 3 meses)", "Documento da terra (escritura, contrato de arrendamento, declaração de posse ou autorização de uso)"]
+- Passo 2: Ir até Emater/Sindicato/Secretaria de Agricultura
+  * USE os endereços fornecidos na seção "ENDEREÇOS DISPONÍVEIS" do prompt
+  * Se houver endereço de Emater disponível, use esse endereço COMPLETO
+  * Se não houver, use conhecimento geral para fornecer endereço específico baseado em {city} {state}
+  * NUNCA peça ao usuário para "buscar no Google" ou "ligar para descobrir"
+  * Forneça address COMPLETO diretamente (rua, número, bairro, cidade, CEP)
+  * Gere map_link usando formato: https://www.google.com/maps/search/?api=1&query=[endereço_encoded]
+  * Inclua phone se disponível
+  * Inclua opening_hours se disponível (geralmente "Segunda a sexta, 8h às 17h")
+  * Se realmente não souber endereço: forneça endereço genérico mas específico como "Emater geralmente fica na Secretaria de Agricultura da prefeitura de {city}. Vá até a prefeitura e pergunte onde fica a Emater."
+- Passo 3: Aguardar emissão
+  * Prazo específico: "na hora" ou "até 5 dias úteis"
+- Órgãos que emitem: Emater, Sindicatos Rurais, Secretarias Municipais de Agricultura
+{map_instructions}
         """,
-        "bank_account": """
-IMPORTANTE - Conta Bancária:
-- Pode ser aberta em qualquer banco (Banco do Brasil, Caixa, Bradesco, Itaú, etc.)
-- Muitos bancos permitem abertura online
-- Processo presencial: Ir até agência com CPF, RG, comprovante de endereço
-- Processo online: Acessar site do banco e seguir instruções
-- Sempre mencione ambas as opções (presencial e online)
+        "bank_account": f"""
+IMPORTANTE - Conta Bancária (ESTE GUIA É APENAS PARA CONTA BANCÁRIA):
+- Este guia é APENAS para abrir conta bancária. NÃO mencione outros requisitos.
+- Passo 1: Reunir documentos
+  * Use documents_checklist: ["CPF", "RG", "Comprovante de endereço atualizado (conta de luz, água ou telefone dos últimos 3 meses)"]
+- Passo 2: Escolher banco e verificar abertura online
+  * Muitos bancos permitem abertura online (mencione isso primeiro)
+  * Se presencial: forneça endereço específico baseado em {city} {state}
+  * Use conhecimento geral: "Banco do Brasil geralmente tem agência no centro de {city}" ou "Caixa Econômica fica na [endereço conhecido]"
+  * NUNCA peça ao usuário para "buscar no Google"
+  * Forneça endereço ou instrução clara: "Vá até o centro de {city} e procure agência do Banco do Brasil ou Caixa"
+{map_instructions}
         """,
-        "address_proof": """
-IMPORTANTE - Comprovante de Endereço:
-- Pode ser: Conta de luz, água, telefone dos últimos 3 meses
-- Alternativas: Declaração de posse da terra, contrato de arrendamento
-- Se não tiver, pode solicitar declaração no sindicato rural ou Emater
+        "address_proof": f"""
+IMPORTANTE - Comprovante de Endereço (ESTE GUIA É APENAS PARA COMPROVANTE):
+- Este guia é APENAS para obter comprovante de endereço. NÃO mencione outros requisitos.
+- Passo 1: Verificar se já possui
+  * Conta de luz, água, telefone dos últimos 3 meses
+- Passo 2: Se não tiver, obter alternativas
+  * Declaração de posse da terra
+  * Contrato de arrendamento
+  * Solicitar declaração no sindicato rural ou Emater
+  * Se precisar ir a algum local: forneça address e map_link
+{map_instructions}
         """,
     }
     
@@ -520,9 +624,45 @@ IMPORTANTE - Comprovante de Endereço:
     
     # Add producer type specific instructions for CNPJ
     if requirement_id == "cnpj" and producer_type == "individual":
-        return instructions_map["cnpj"] + "\n\n⚠️ ATENÇÃO ESPECIAL: Este produtor é INDIVIDUAL. A opção MEI online é a MAIS SIMPLES e RÁPIDA. Destaque isso claramente!"
+        return instructions_map["cnpj"] + "\n\n⚠️ ATENÇÃO ESPECIAL: Este produtor é INDIVIDUAL. A opção MEI online é a MAIS SIMPLES e RÁPIDA. Destaque isso claramente no Passo 2!"
     
     return base_instruction
+
+
+def format_office_addresses(office_addresses: dict[str, dict]) -> str:
+    """
+    Format office addresses for the prompt.
+    
+    Args:
+        office_addresses: Dictionary mapping office type to OfficeInfo dict
+    
+    Returns:
+        Formatted string with office addresses
+    """
+    if not office_addresses:
+        return "Nenhum endereço específico encontrado. Use conhecimento geral para fornecer endereço baseado na cidade/estado."
+    
+    parts = []
+    for office_type, info in office_addresses.items():
+        name = info.get("name", office_type)
+        address = info.get("address", "")
+        phone = info.get("phone", "")
+        opening_hours = info.get("opening_hours", "")
+        maps_link = info.get("google_maps_link", "")
+        
+        office_text = f"{name}:\n"
+        if address:
+            office_text += f"  Endereço: {address}\n"
+        if phone:
+            office_text += f"  Telefone: {phone}\n"
+        if opening_hours:
+            office_text += f"  Horário: {opening_hours}\n"
+        if maps_link:
+            office_text += f"  Link Maps: {maps_link}\n"
+        
+        parts.append(office_text)
+    
+    return "\n".join(parts)
 
 
 def build_personalized_prompt(
@@ -533,6 +673,7 @@ def build_personalized_prompt(
     formalization_status: dict | None = None,
     complete_context: dict | None = None,
     requirement_id: str | None = None,
+    office_addresses: dict[str, dict] | None = None,
 ) -> str:
     """
     Build a personalized prompt with enriched context from onboarding and formalization.
@@ -581,10 +722,14 @@ def build_personalized_prompt(
             "IMPORTANTE: Este produtor faz parte de comunidade tradicional. Considere a Nota Técnica 03/2020 do MPF, que permite autoconsumo sem registros sanitários para produtos produzidos e consumidos na mesma comunidade.\n\nINSTRUÇÕES:"
         )
     
+    # Format office addresses
+    addresses_text = format_office_addresses(office_addresses or {})
+    
     return prompt.format(
         producer_profile_full=profile_text,
         formalization_status_detailed=status_context,
         completed_vs_pending=context_text,
         requirement=requirement_text,
         rag_chunks_enhanced=chunks_text,
+        office_addresses=addresses_text,
     )

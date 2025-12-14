@@ -1,10 +1,12 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { CheckCircle2, ChevronLeft, FileText, Info, Lightbulb, ShieldCheck, Upload, Sparkles } from 'lucide-react';
 import type { ChecklistItem, Document } from '../../../domain/models';
-import type { DocumentType, FormalizationGuideResponse } from '../../../services/api/types';
-import { uploadDocument } from '../../../services/api/documents';
+import type { FormalizationGuideResponse } from '../../../services/api/types';
 import { generateFormalizationGuide } from '../../../services/api/ai';
 import { ApiClientError } from '../../../services/api/client';
+import { useFileUpload } from '../hooks/useFileUpload';
+import { AIGuideSection } from './AIGuideSection';
+import { ERROR_MESSAGES, UI_MESSAGES } from '../constants/messages';
 
 export function ChecklistItemDetails({
   item,
@@ -20,72 +22,24 @@ export function ChecklistItemDetails({
   onUploadDoc: (id: string) => void;
 }) {
   const [expandedStepHelp, setExpandedStepHelp] = useState<number | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [aiGuide, setAiGuide] = useState<FormalizationGuideResponse | null>(null);
   const [isLoadingGuide, setIsLoadingGuide] = useState(false);
   const [guideError, setGuideError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const relatedDoc = useMemo(
     () => (item.relatedDocId ? documents.find((d) => d.id === item.relatedDocId) : undefined),
     [documents, item.relatedDocId]
   );
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    setUploadError('');
-    setUploadProgress(0);
-
-    try {
-      let docType: DocumentType = 'other';
-      
-      if (relatedDoc) {
-        // Use the document type directly if it's valid, otherwise default to 'other'
-        docType = relatedDoc.type || 'other';
-      } else if (item.needUpload) {
-        // For tasks that need upload but don't have a related doc, use 'other'
-        docType = 'other';
-      }
-
-      await uploadDocument(file, docType);
-      
-      // Update document status if there's a related doc
-      if (relatedDoc) {
-        onUploadDoc(relatedDoc.id);
-      }
-      
-      setUploadProgress(100);
-      
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setUploadError(err.message || 'Erro ao fazer upload. Tente novamente.');
-      } else {
-        setUploadError('Erro ao fazer upload. Tente novamente.');
-      }
-    } finally {
-      setIsUploading(false);
-      setTimeout(() => setUploadProgress(0), 2000);
-    }
-  };
-
-  const handleUploadClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
+  const fileUpload = useFileUpload({
+    relatedDoc,
+    needUpload: item.needUpload,
+    onUploadDoc,
+  });
 
   const handleGenerateGuide = async () => {
     if (!item.requirementId) {
-      setGuideError('Este item não possui um guia de formalização disponível.');
+      setGuideError(ERROR_MESSAGES.NO_GUIDE_AVAILABLE);
       return;
     }
 
@@ -99,9 +53,9 @@ export function ChecklistItemDetails({
       setAiGuide(guide);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setGuideError(err.message || 'Erro ao gerar guia. Tente novamente.');
+        setGuideError(err.message || ERROR_MESSAGES.GUIDE_GENERATION_ERROR);
       } else {
-        setGuideError('Erro ao gerar guia. Tente novamente.');
+        setGuideError(ERROR_MESSAGES.GUIDE_GENERATION_ERROR);
       }
     } finally {
       setIsLoadingGuide(false);
@@ -127,176 +81,17 @@ export function ChecklistItemDetails({
               <p className="text-slate-500">{item.description}</p>
             </div>
             {item.priority === 'high' && (
-              <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full uppercase">Importante</span>
+              <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full uppercase">{UI_MESSAGES.IMPORTANT}</span>
             )}
           </div>
 
-          {item.requirementId && (
-            <div className="mb-6">
-              {!aiGuide ? (
-                <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-bold text-purple-800 flex items-center gap-2">
-                          <Sparkles className="h-5 w-5" />
-                          Guia Personalizado de Formalização
-                        </h3>
-                      </div>
-                      <p className="text-sm text-purple-700">
-                        Obtenha um guia passo a passo personalizado gerado por IA para completar este requisito.
-                        <span className="block mt-1 text-xs text-purple-600">
-                          O guia será adaptado ao seu perfil, localização e situação atual.
-                        </span>
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleGenerateGuide}
-                      disabled={isLoadingGuide}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap shadow-md"
-                    >
-                      {isLoadingGuide ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Gerando...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4" />
-                          <span>Gerar Guia</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 rounded-xl border-2 border-purple-300 shadow-lg overflow-hidden">
-                  {/* Header destacado com badge de IA */}
-                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 text-white">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
-                          <Sparkles className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg flex items-center gap-2">
-                            Guia Personalizado
-                            <span className="bg-white/30 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">
-                              Gerado por IA
-                            </span>
-                          </h3>
-                          <p className="text-xs text-white/90 mt-0.5">
-                            Adaptado especialmente para você
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleGenerateGuide}
-                        disabled={isLoadingGuide}
-                        className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition backdrop-blur-sm"
-                        title="Regenerar guia"
-                      >
-                        {isLoadingGuide ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                        ) : (
-                          <Sparkles className="h-3 w-3" />
-                        )}
-                        Regenerar
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-6 space-y-5">
-                    {/* Resumo destacado */}
-                    <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-purple-200 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <Info className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-800 leading-relaxed">{aiGuide.summary}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Passos do guia */}
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                        <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs">PASSO A PASSO</span>
-                      </h4>
-                      <div className="space-y-3">
-                        {aiGuide.steps.map((step, idx) => (
-                          <div 
-                            key={step.step} 
-                            className="bg-white/90 backdrop-blur-sm p-4 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-white font-bold flex items-center justify-center text-sm shadow-md">
-                                {step.step}
-                              </div>
-                              <div className="flex-1">
-                                <h5 className="font-bold text-sm text-slate-800 mb-1.5">{step.title}</h5>
-                                <p className="text-sm text-slate-600 leading-relaxed">{step.description}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Informações adicionais em grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-purple-200 shadow-sm">
-                        <p className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-2">
-                          <span className="text-purple-600">⏱️</span>
-                          Tempo Estimado
-                        </p>
-                        <p className="text-base font-bold text-slate-800">{aiGuide.estimated_time_days} dias</p>
-                      </div>
-
-                      {aiGuide.where_to_go.length > 0 && (
-                        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-purple-200 shadow-sm">
-                          <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-2">
-                            <span className="text-blue-600">📍</span>
-                            Onde ir
-                          </p>
-                          <ul className="space-y-1.5">
-                            {aiGuide.where_to_go.map((location, idx) => (
-                              <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
-                                <span className="text-purple-500 mt-1">•</span>
-                                <span>{location}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Nível de confiança */}
-                    <div className="flex items-center justify-between pt-3 border-t border-purple-200">
-                      <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <ShieldCheck className="h-4 w-4 text-purple-600" />
-                        <span>Nível de confiança da IA:</span>
-                        <span className={`font-bold px-2 py-0.5 rounded ${
-                          aiGuide.confidence_level === 'high' 
-                            ? 'bg-green-100 text-green-700' 
-                            : aiGuide.confidence_level === 'medium'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          {aiGuide.confidence_level === 'high' ? 'Alto' : aiGuide.confidence_level === 'medium' ? 'Médio' : 'Baixo'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {guideError && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-                  {guideError}
-                </div>
-              )}
-            </div>
-          )}
+          <AIGuideSection
+            requirementId={item.requirementId}
+            guide={aiGuide}
+            isLoading={isLoadingGuide}
+            error={guideError}
+            onGenerate={handleGenerateGuide}
+          />
 
           {item.detailedSteps && item.detailedSteps.length > 0 && (
             <div className="mb-10">
@@ -321,11 +116,11 @@ export function ChecklistItemDetails({
                             className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 transition"
                           >
                             {expandedStepHelp === idx ? (
-                              <>Ocultar guia</>
+                              <>{UI_MESSAGES.HIDE_GUIDE}</>
                             ) : (
                               <>
                                 <Lightbulb className="h-3 w-3" />
-                                Dica útil
+                                {UI_MESSAGES.USEFUL_TIP}
                               </>
                             )}
                           </button>
@@ -364,56 +159,56 @@ export function ChecklistItemDetails({
                 {relatedDoc && (
                   <div className="flex-1">
                     {relatedDoc.status === 'missing' && (
-                      <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold">Pendente</span>
+                      <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold">{UI_MESSAGES.PENDING}</span>
                     )}
                     {(relatedDoc.status === 'uploaded' || relatedDoc.status === 'ai_reviewed') && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Enviado</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">{UI_MESSAGES.SENT}</span>
                     )}
                   </div>
                 )}
 
                 <input
-                  ref={fileInputRef}
+                  ref={fileUpload.fileInputRef}
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleFileSelect}
+                  onChange={fileUpload.handleFileSelect}
                   className="hidden"
-                  disabled={isUploading || (relatedDoc?.status === 'uploaded' || relatedDoc?.status === 'ai_reviewed')}
+                  disabled={fileUpload.isUploading || (relatedDoc?.status === 'uploaded' || relatedDoc?.status === 'ai_reviewed')}
                 />
 
                 <button
-                  onClick={handleUploadClick}
-                  disabled={isUploading || (relatedDoc?.status === 'uploaded' || relatedDoc?.status === 'ai_reviewed')}
+                  onClick={fileUpload.handleUploadClick}
+                  disabled={fileUpload.isUploading || (relatedDoc?.status === 'uploaded' || relatedDoc?.status === 'ai_reviewed')}
                   className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
-                  {isUploading ? (
+                  {fileUpload.isUploading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Enviando...</span>
+                      <span>{UI_MESSAGES.UPLOADING}</span>
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      {relatedDoc?.status === 'missing' || !relatedDoc ? 'Fazer Upload Agora' : 'Upload Concluído'}
+                      {relatedDoc?.status === 'missing' || !relatedDoc ? UI_MESSAGES.UPLOAD_NOW : UI_MESSAGES.UPLOAD_COMPLETE}
                     </>
                   )}
                 </button>
               </div>
 
-              {uploadProgress > 0 && uploadProgress < 100 && (
+              {fileUpload.uploadProgress > 0 && fileUpload.uploadProgress < 100 && (
                 <div className="mt-3">
                   <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-primary-500 transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
+                      className="h-full bg-green-500 transition-all duration-300"
+                      style={{ width: `${fileUpload.uploadProgress}%` }}
                     />
                   </div>
                 </div>
               )}
 
-              {uploadError && (
+              {fileUpload.uploadError && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-                  {uploadError}
+                  {fileUpload.uploadError}
                 </div>
               )}
 
@@ -453,7 +248,7 @@ export function ChecklistItemDetails({
               }`}
             >
               <CheckCircle2 className="h-5 w-5" />
-              {item.status === 'done' ? 'Tarefa Concluída' : 'Marcar como Concluído'}
+              {item.status === 'done' ? UI_MESSAGES.TASK_COMPLETE : UI_MESSAGES.MARK_AS_COMPLETE}
             </button>
           </div>
         </div>

@@ -12,6 +12,8 @@ services:
       # Ou use a Deco API (sem necessidade de API key):
       - LLM_PROVIDER=deco
       - DECO_API_URL=https://api.decocms.com/hackathon2/belo-projeto/triggers/5013e0dc-38dd-4af8-ad35-8c19cd2094cf
+      # Google Places API (opcional, para buscar endereços reais de órgãos):
+      # - GOOGLE_PLACES_API_KEY=sua-chave-google-places-aqui
 
   frontend:
     volumes:

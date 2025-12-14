@@ -1,0 +1,9 @@
+code,title,description,why,blocking,estimated_time_days,conditional_on
+HAS_CPF,Ter CPF,"Possuir CPF regular em seu nome.","O CPF é necessário para qualquer cadastro e para participar de programas públicos.",true,1,
+HAS_FAMILY_FARMER_REGISTRATION,Ter cadastro como agricultor familiar (CAF/DAP),"Obter o cadastro de agricultor familiar (CAF ou DAP) junto aos órgãos responsáveis.","Esse cadastro é obrigatório para vender alimentos para escolas pelo PNAE.",true,7,
+HAS_BANK_ACCOUNT,Ter conta bancária,"Ter conta bancária ativa em seu nome ou no nome do grupo.","O pagamento do PNAE é feito somente por conta bancária.",false,3,
+HAS_ADDRESS_PROOF,Ter comprovante de endereço,"Ter um comprovante de endereço atualizado (conta de luz, água ou telefone dos últimos 3 meses).","O comprovante de endereço é necessário para participar de programas públicos.",false,2,
+PRODUCTION_IS_ELIGIBLE,Produzir alimentos aceitos pelo PNAE,"Confirmar que os alimentos produzidos podem ser comprados pelo PNAE.","O PNAE só compra alimentos permitidos e prioriza alimentos in natura ou minimamente processados.",false,0,
+BASIC_DOCUMENTS_READY,Separar documentos básicos,"Separar documentos pessoais e do produtor exigidos na chamada pública.","Esses documentos são exigidos para habilitação na Chamada Pública.",false,2,
+SALES_PROJECT_READY,Preparar Projeto de Venda,"Preparar o Projeto de Venda no modelo exigido pelo PNAE.","O Projeto de Venda é obrigatório para participar da Chamada Pública.",false,3,wants_to_sell_to_school
+PUBLIC_CALL_SUBMISSION_READY,Entregar documentos na Chamada Pública,"Entregar os documentos e o Projeto de Venda no local indicado pela prefeitura.","Sem a entrega correta, não é possível participar da seleção do PNAE.",false,1,wants_to_sell_to_school

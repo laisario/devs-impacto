@@ -7,6 +7,7 @@ Uses LLM to automatically classify chunks and determine:
 """
 
 import json
+import logging
 from typing import Any
 
 from app.modules.ai_formalization.llm_client import LLMClient
@@ -117,7 +118,12 @@ async def classify_chunk(
         }
     except Exception as e:
         # Fallback classification
-        print(f"⚠ Classification failed: {e}, using fallback")
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Classification failed for chunk: {e}",
+            exc_info=True,
+            extra={"chunk_preview": chunk_content[:200] if chunk_content else None, "operation": "classify_chunk"}
+        )
         return {
             "topic": "general",
             "applies_to": [],

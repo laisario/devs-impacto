@@ -26,3 +26,4 @@ export async function sendChatMessage(
     body: JSON.stringify(data),
   });
 }
+

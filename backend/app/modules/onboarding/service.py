@@ -3,6 +3,7 @@ Onboarding module service.
 Business logic for onboarding operations.
 """
 
+import logging
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -27,6 +28,7 @@ class OnboardingService:
         self.collection = db.onboarding_answers
         self.questions_collection = db.onboarding_questions
         self.profiles_collection = db.producer_profiles
+        self.logger = logging.getLogger(__name__)
         # Cache de perguntas (carregado sob demanda)
         self._questions_cache: dict[str, OnboardingQuestion] | None = None
 
@@ -69,9 +71,18 @@ class OnboardingService:
             question = OnboardingQuestion(**doc)
             questions[question.question_id] = question
 
-        # If no questions found, auto-seed default questions
+        # If no questions found, auto-seed from CSV
         if not questions:
-            await self.seed_default_questions()
+            try:
+                from app.modules.onboarding.seeds import seed_onboarding_questions
+                await seed_onboarding_questions(self.db)
+            except Exception as e:
+                # Fallback to default questions if CSV fails
+                self.logger.warning(
+                    f"Failed to load questions from CSV, using default: {e}",
+                    exc_info=True,
+                )
+                await self.seed_default_questions()
             # Reload after seeding
             cursor = self.questions_collection.find().sort("order", 1)
             async for doc in cursor:
@@ -396,6 +407,10 @@ class OnboardingService:
             # Update profile based on question
             update_doc: dict[str, Any] = {"updated_at": now}
             
+            # Get question to check sets_flag
+            question = await self._get_question_by_id(question_id)
+            
+            # Handle legacy question IDs for backward compatibility
             if question_id == "producer_type":
                 producer_type_map = {
                     "Individual": "individual",
@@ -403,6 +418,8 @@ class OnboardingService:
                     "Formal (CNPJ)": "formal",
                     "Grupo Informal": "informal",
                     "Grupo Formal (CNPJ)": "formal",
+                    "sozinho": "individual",
+                    "grupo": "informal",
                 }
                 producer_type_str = str(answer)
                 update_doc["producer_type"] = producer_type_map.get(producer_type_str, "individual")
@@ -424,6 +441,74 @@ class OnboardingService:
                 if cnpj_clean:
                     update_doc["cnpj"] = cnpj_clean
             
+            # Use sets_flag from CSV if available
+            if question and question.sets_flag:
+                # Convert answer to appropriate type based on question type
+                if question.question_type == QuestionType.CHOICE and not question.allow_multiple:
+                    # For single_choice, check if answer is "sim" or True
+                    # Handle both string and boolean answers
+                    if isinstance(answer, str):
+                        bool_value = answer.lower() in ["sim", "yes", "true", "1"]
+                    else:
+                        bool_value = bool(answer)
+                    update_doc[question.sets_flag] = bool_value
+                elif question.question_type == QuestionType.BOOLEAN:
+                    update_doc[question.sets_flag] = bool(answer)
+                elif question.allow_multiple:
+                    # For multi_choice, store as list
+                    if isinstance(answer, list):
+                        update_doc[question.sets_flag] = answer
+                    else:
+                        update_doc[question.sets_flag] = [answer] if answer else []
+                else:
+                    # For other types (text, etc), store the value directly
+                    # But apply special formatting for specific fields
+                    if question.sets_flag == "name":
+                        update_doc[question.sets_flag] = str(answer).strip()
+                    elif question.sets_flag == "address":
+                        update_doc[question.sets_flag] = str(answer).strip()
+                    elif question.sets_flag == "city":
+                        update_doc[question.sets_flag] = str(answer).strip()
+                    elif question.sets_flag == "state":
+                        update_doc[question.sets_flag] = str(answer).strip().upper()[:2]
+                    else:
+                        update_doc[question.sets_flag] = answer
+                
+                # Special handling for producer_mode -> producer_type mapping
+                if question.sets_flag == "producer_mode":
+                    # Map producer_mode to producer_type
+                    producer_mode_map = {
+                        "sozinho": "individual",
+                        "grupo": "informal",
+                    }
+                    if isinstance(answer, str):
+                        producer_type = producer_mode_map.get(answer.lower(), "individual")
+                        update_doc["producer_type"] = producer_type
+                
+                # Special handling for has_family_farmer_registration
+                if question.sets_flag == "has_family_farmer_registration":
+                    if isinstance(answer, str):
+                        bool_value = answer.lower() in ["sim", "yes", "true", "1"]
+                    else:
+                        bool_value = bool(answer)
+                    update_doc["has_dap_caf"] = bool_value
+            
+            # Legacy handling for backward compatibility
+            elif question_id == "has_dap_caf":
+                update_doc["has_dap_caf"] = bool(answer)
+                update_doc["has_family_farmer_registration"] = bool(answer)
+            
+            elif question_id == "has_bank_account":
+                update_doc["has_bank_account"] = bool(answer)
+            
+            elif question_id == "has_cnpj":
+                update_doc["has_cnpj"] = bool(answer)
+            
+            elif question_id == "has_previous_sales" or question_id == "experience_1":
+                # Usar como proxy para wants_to_sell_to_school se não tiver sido setado
+                if "wants_to_sell_to_school" not in update_doc:
+                    update_doc["wants_to_sell_to_school"] = bool(answer)
+            
             # Update profile
             if update_doc:
                 await self.profiles_collection.update_one(
@@ -432,9 +517,11 @@ class OnboardingService:
                 )
         except Exception as e:
             # Don't fail if profile update fails
-            import traceback
-            print(f"Error updating profile from answer: {e}")
-            print(traceback.format_exc())
+            self.logger.warning(
+                f"Failed to update profile from answer for user {user_id}: {e}",
+                exc_info=True,
+                extra={"user_id": user_id, "question_id": question_id, "operation": "_update_profile_from_answer"}
+            )
 
     async def _update_profile_status(self, user_id: str) -> None:
         """Update onboarding status in producer profile. Creates profile if it doesn't exist."""
@@ -471,10 +558,19 @@ class OnboardingService:
             user_oid = to_object_id(user_id)
             existing = await self.profiles_collection.find_one({"user_id": user_oid})
             if existing:
-                required_fields = {"producer_type", "name", "address", "city", "state", "dap_caf_number"}
-                if required_fields.issubset(set(existing.keys())):
-                    # Profile already exists with all required fields
+                # Check only truly required fields (dap_caf_number is optional)
+                required_fields = {"producer_type", "name", "address", "city", "state"}
+                existing_fields = set(existing.keys())
+                # Check if all required fields exist and are not placeholder values
+                placeholder_values = {"Nome não informado", "Endereço não informado", "Cidade não informada", "XX"}
+                has_all_required = required_fields.issubset(existing_fields) and all(
+                    existing.get(field) and str(existing.get(field)) not in placeholder_values 
+                    for field in required_fields
+                )
+                if has_all_required:
+                    # Profile already exists with all required fields and real values (not placeholders)
                     return
+                # If profile exists but has placeholders, continue to update it with real values
             
             # Map answers to profile fields
             producer_type_map = {
@@ -515,15 +611,90 @@ class OnboardingService:
                 "dap_caf_number": dap_caf_number or None,  # Can be None
             }
             
+            # Adicionar flags do onboarding para formalização usando sets_flag do CSV
+            questions = await self._get_questions()
+            for question_id, answer_doc in answers.items():
+                question = questions.get(question_id)
+                if question and question.sets_flag:
+                    answer = answer_doc.answer
+                    # Convert answer to appropriate type
+                    if question.question_type == QuestionType.CHOICE and not question.allow_multiple:
+                        # For single_choice, check if answer is "sim"
+                        if isinstance(answer, str):
+                            bool_value = answer.lower() in ["sim", "yes", "true", "1"]
+                        else:
+                            bool_value = bool(answer)
+                        profile_data[question.sets_flag] = bool_value
+                    elif question.question_type == QuestionType.BOOLEAN:
+                        profile_data[question.sets_flag] = bool(answer)
+                    elif question.allow_multiple:
+                        # For multi_choice, store as list
+                        if isinstance(answer, list):
+                            profile_data[question.sets_flag] = answer
+                        else:
+                            profile_data[question.sets_flag] = [answer] if answer else []
+                    else:
+                        # For other types, store the value directly
+                        profile_data[question.sets_flag] = answer
+                    
+                    # Special handling for producer_mode -> producer_type mapping
+                    if question.sets_flag == "producer_mode":
+                        # Map producer_mode to producer_type
+                        producer_mode_map = {
+                            "sozinho": "individual",
+                            "grupo": "informal",
+                        }
+                        if isinstance(answer, str):
+                            producer_type = producer_mode_map.get(answer.lower(), "individual")
+                            profile_data["producer_type"] = producer_type
+                    
+                    # Special handling for has_family_farmer_registration
+                    if question.sets_flag == "has_family_farmer_registration":
+                        if isinstance(answer, str):
+                            bool_value = answer.lower() in ["sim", "yes", "true", "1"]
+                        else:
+                            bool_value = bool(answer)
+                        profile_data["has_dap_caf"] = bool_value
+            
+            # Legacy handling for backward compatibility
+            has_dap_caf_answer = answers.get("has_dap_caf")
+            if has_dap_caf_answer and "has_dap_caf" not in profile_data:
+                profile_data["has_dap_caf"] = bool(has_dap_caf_answer.answer)
+                profile_data["has_family_farmer_registration"] = bool(has_dap_caf_answer.answer)
+            
+            has_bank_account_answer = answers.get("has_bank_account")
+            if has_bank_account_answer and "has_bank_account" not in profile_data:
+                profile_data["has_bank_account"] = bool(has_bank_account_answer.answer)
+            
+            # has_cpf pode vir do auth, mas vamos verificar se está no profile
+            # Se não estiver, assumir True (CPF é necessário para login)
+            if "has_cpf" not in profile_data:
+                profile_data["has_cpf"] = True  # CPF vem do auth/login
+            
             # Add CNPJ based on producer type (CPF comes from login/auth)
             # Note: has_cnpj is a boolean question, not the CNPJ number itself
             # For now, we don't have the CNPJ number in onboarding, so we skip it
             # User can add it later via profile update
             
-            # Validate required fields (DAP/CAF is optional for now)
-            required = ["producer_type", "name", "address", "city", "state"]
-            if not all(profile_data.get(field) for field in required):
-                print(f"Missing required fields for profile creation: {[f for f in required if not profile_data.get(f)]}")
+            # Ensure all required fields have values (use existing values or defaults)
+            # Try to preserve existing values if they're better than defaults
+            if existing:
+                for field in ["name", "address", "city", "state"]:
+                    existing_value = existing.get(field)
+                    current_value = profile_data.get(field)
+                    # Use existing value if current is a placeholder
+                    if existing_value and (
+                        current_value in ["Nome não informado", "Endereço não informado", "Cidade não informada", "XX"] or
+                        not current_value
+                    ):
+                        profile_data[field] = existing_value
+            
+            # Final validation - only producer_type is truly required
+            if not profile_data.get("producer_type"):
+                self.logger.error(
+                    f"Missing producer_type for profile creation",
+                    extra={"user_id": user_id, "operation": "_create_profile_from_answers"}
+                )
                 return
             
             # Create profile using ProducerService
@@ -535,9 +706,11 @@ class OnboardingService:
             await producer_service.upsert_profile(user_id, profile_create)
             
         except Exception as e:
-            import traceback
-            print(f"Error creating profile from answers: {e}")
-            print(traceback.format_exc())
+            self.logger.error(
+                f"Failed to create profile from answers for user {user_id}: {e}",
+                exc_info=True,
+                extra={"user_id": user_id, "operation": "_create_profile_from_answers"}
+            )
             # Don't raise - profile creation failure shouldn't break onboarding
 
     async def _ensure_profile_exists(self, user_id: str) -> None:
@@ -578,9 +751,11 @@ class OnboardingService:
                 })
         except Exception as e:
             # Log error but don't fail - profile creation is not critical for status endpoint
-            import traceback
-            print(f"Error in _ensure_profile_exists: {e}")
-            print(traceback.format_exc())
+            self.logger.warning(
+                f"Failed to ensure profile exists for user {user_id}: {e}",
+                exc_info=True,
+                extra={"user_id": user_id, "operation": "_ensure_profile_exists"}
+            )
             # Re-raise only if it's not a duplicate key error (profile might have been created concurrently)
             if "duplicate" not in str(e).lower() and "E11000" not in str(e):
                 raise

@@ -1,235 +1,113 @@
-# PNAE Simplificado - Full Stack Application
+# PNAE Simplificado
 
-Aplicação completa para guiar pequenos produtores (agricultura familiar) no processo de formalização para vender para o PNAE.
+Plataforma que guia agricultores familiares através do processo de formalização para vender ao Programa Nacional de Alimentação Escolar (PNAE).
+
+## Visão Geral
+
+O PNAE Simplificado ajuda pequenos agricultores familiares a navegar pelo complexo processo de formalização necessário para participar do Programa Nacional de Alimentação Escolar. A plataforma fornece guias personalizados passo a passo, alimentados por IA, tornando processos burocráticos acessíveis para agricultores com diferentes níveis de alfabetização digital.
+
+**O que faz**: Guia agricultores através da coleta de documentos, requisitos de formalização e avaliação de elegibilidade para participação no PNAE.
+
+**Para quem**: Agricultores familiares (agricultura familiar) que buscam vender para programas públicos.
+
+**Por que existe**: Simplifica processos burocráticos complexos que impedem muitos agricultores de acessar oportunidades de compras públicas.
+
+## Arquitetura
+
+- **Backend**: FastAPI + MongoDB
+- **Frontend**: React + TypeScript + Vite
+- **IA**: OpenAI/Deco API com RAG (Retrieval-Augmented Generation)
+- **Storage**: S3-compatível (configurável)
+
+### Estrutura do Backend
+
+```
+app/
+├── core/              # Infraestrutura (config, db, security)
+├── modules/           # Módulos de funcionalidades
+│   ├── auth/          # Autenticação (OTP + JWT)
+│   ├── producers/     # Perfis de produtores
+│   ├── documents/     # Upload e validação de documentos
+│   ├── onboarding/    # Questionário de onboarding
+│   ├── formalization/ # Diagnóstico de elegibilidade
+│   ├── ai_formalization/ # Geração de guias com IA (RAG)
+│   ├── ai_chat/       # Chatbot
+│   └── sales_project/ # Gerador de projeto de venda
+└── shared/            # Utilitários compartilhados
+```
+
+### Estrutura do Frontend
+
+```
+src/
+├── app/               # Componente raiz
+├── components/        # Componentes compartilhados
+├── contexts/          # Contextos React (Auth)
+├── domain/            # Modelos de domínio
+├── features/          # Módulos de funcionalidades
+│   ├── auth/
+│   ├── dashboard/
+│   └── onboarding/
+└── services/          # Serviços de API
+```
+
+## Quick Start
+
+```bash
+# Iniciar tudo com Docker
+docker-compose up
+```
+
+**Acesso:**
+- Frontend: http://localhost:5173
+- API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+Veja [QUICK_START.md](QUICK_START.md) para instruções detalhadas de configuração e [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md) para guia completo de desenvolvimento.
 
 ## Estrutura do Projeto
 
 ```
 hackathon/
-├── backend/          # FastAPI backend
-├── frontend/         # React + TypeScript frontend
-├── docker-compose.yml # Docker Compose para desenvolvimento
-└── README.md
+├── backend/          # Aplicação FastAPI
+│   ├── app/          # Código da aplicação
+│   ├── tests/        # Testes
+│   ├── scripts/      # Scripts operacionais
+│   │   ├── dev/      # Scripts de desenvolvimento
+│   │   └── ops/      # Scripts operacionais
+│   └── data/         # Arquivos de dados
+│       └── rag/      # Documentos RAG
+│           ├── raw/      # Documentos originais
+│           ├── processed/ # Textos limpos (.txt)
+│           └── metadata/  # Metadados
+├── frontend/         # Aplicação React
+│   ├── src/          # Código fonte
+│   └── e2e/          # Testes E2E
+└── docker-compose.yml
 ```
 
-## Quick Start com Docker
+## Desenvolvimento
 
-### Desenvolvimento
+Veja [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md) para guia completo incluindo setup local, testes, qualidade de código, ingestão de documentos RAG, documentação da API e contribuição.
 
-```bash
-# Iniciar todos os serviços
-docker-compose up
+## Qualidade de Código
 
-# Ou em background
-docker-compose up -d
-
-# Ver logs
-docker-compose logs -f
-
-# Parar serviços
-docker-compose down
-```
-
-Serviços disponíveis:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-- MongoDB: localhost:27017
-
-### Produção
-
-```bash
-# Iniciar com perfil de produção
-docker-compose --profile production up
-```
-
-## Desenvolvimento Local (sem Docker)
-
-### Backend
-
+**Backend:**
 ```bash
 cd backend
-pip install -e ".[dev]"
-uvicorn app.main:app --reload
+ruff check app/ && ruff format app/
 ```
 
-### Frontend
-
+**Frontend:**
 ```bash
 cd frontend
-npm install
-npm run dev
+npm run lint && npm run typecheck
 ```
 
-## Testes
+## API
 
-### Backend
+Documentação interativa: http://localhost:8000/docs
 
-```bash
-cd backend
+## Licença
 
-# IMPORTANTE: Ative o ambiente virtual primeiro!
-source ../.venv/bin/activate
-
-# Todos os testes
-python -m pytest tests/
-
-# Apenas testes unitários
-python -m pytest tests/ -m "not integration"
-
-# Apenas testes de integração
-python -m pytest tests/integration/ -v
-
-# Com cobertura
-python -m pytest tests/ --cov=app --cov-report=html
-
-# Ou usando Makefile (ativa venv automaticamente)
-make test
-make test-unit
-make test-integration
-make coverage
-
-# Ou usando o script helper
-./run_tests.sh tests/integration/
-```
-
-**Nota:** Se encontrar erro `ModuleNotFoundError: No module named 'motor'`, certifique-se de que o ambiente virtual está ativado. Veja `backend/README_TESTS.md` para mais detalhes.
-
-### Frontend
-
-```bash
-cd frontend
-
-# Testes unitários (Vitest)
-npm run test:unit
-
-# Testes unitários em modo watch
-npm run test:unit:watch
-
-# Testes unitários com UI
-npm run test:unit:ui
-
-# Testes E2E (Playwright) - requer serviços rodando
-npm run test:e2e
-
-# Testes E2E com UI interativa
-npm run test:e2e:ui
-
-# Testes E2E com browser visível
-npm run test:e2e:headed
-
-# Testes E2E em modo debug
-npm run test:e2e:debug
-```
-
-## Ambiente de Testes
-
-### Testes E2E
-
-Os testes E2E requerem que os serviços estejam rodando. Você tem duas opções:
-
-**Opção 1: Usar Docker Compose (recomendado)**
-
-```bash
-# Terminal 1: Iniciar serviços
-docker-compose up
-
-# Terminal 2: Rodar testes E2E
-cd frontend
-npm run test:e2e
-```
-
-**Opção 2: Ambiente de testes isolado**
-
-```bash
-# Iniciar ambiente de testes
-docker-compose -f docker-compose.test.yml up
-
-# Em outro terminal, rodar testes
-cd frontend
-E2E_BASE_URL=http://localhost:8001 npm run test:e2e
-```
-
-**Opção 3: Serviços locais**
-
-```bash
-# Terminal 1: Backend
-cd backend && source ../.venv/bin/activate && uvicorn app.main:app --reload
-
-# Terminal 2: Frontend
-cd frontend && npm run dev
-
-# Terminal 3: MongoDB (se não usar Docker)
-# mongod --dbpath ./data/db
-
-# Terminal 4: Testes E2E
-cd frontend && npm run test:e2e
-```
-
-## Estrutura de Testes
-
-### Backend
-- `tests/` - Testes unitários
-- `tests/integration/` - Testes de integração (fluxos completos)
-
-### Frontend
-- `src/services/api/__tests__/` - Testes unitários dos serviços API
-- `e2e/` - Testes end-to-end com Playwright
-
-## Variáveis de Ambiente
-
-### Backend
-Criar `backend/.env` (opcional, pode usar docker-compose.override.yml):
-```
-MONGODB_URI=mongodb://localhost:27017
-DATABASE_NAME=pnae_dev
-JWT_SECRET=your-secret-key
-OPENAI_API_KEY=sk-sua-chave-aqui  # Para funcionalidades GenAI
-LLM_PROVIDER=openai               # "openai" ou "mock"
-```
-
-### Frontend
-Criar `frontend/.env` (opcional):
-```
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-**💡 Dica:** A forma mais fácil é editar `docker-compose.override.yml` e adicionar as variáveis lá. Veja `QUICK_START.md` para instruções detalhadas.
-
-## Documentação da API
-
-A documentação interativa está disponível em:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-Documentação completa dos endpoints: `backend/API_ENDPOINTS.md`
-
-## Comandos Úteis
-
-### Docker
-```bash
-# Rebuild containers
-docker-compose build
-
-# Ver logs de um serviço específico
-docker-compose logs -f backend
-
-# Executar comando em container
-docker-compose exec backend pytest tests/
-docker-compose exec frontend npm run test:unit
-```
-
-### Desenvolvimento
-```bash
-# Backend: Lint
-cd backend && ruff check app/
-
-# Backend: Format
-cd backend && ruff format app/
-
-# Frontend: Lint
-cd frontend && npm run lint
-
-# Frontend: Type check
-cd frontend && npm run typecheck
-```
+MIT

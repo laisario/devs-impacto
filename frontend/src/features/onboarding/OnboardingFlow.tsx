@@ -4,6 +4,12 @@ import { getOnboardingStatus, submitOnboardingAnswer, updateProfileField } from 
 import { ApiClientError } from '../../services/api/client';
 import type { OnboardingQuestion } from '../../services/api/types';
 
+// Helper function to capitalize first letter
+const capitalize = (str: string): string => {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
 export function OnboardingFlow({
   onFinish,
   isLoading: externalLoading,
@@ -352,7 +358,7 @@ export function OnboardingFlow({
                                 </svg>
                               )}
                             </div>
-                            <span>{opt}</span>
+                            <span>{capitalize(opt)}</span>
                           </button>
                         );
                       })}
@@ -381,7 +387,7 @@ export function OnboardingFlow({
                           disabled={isSubmitting}
                           className="w-full text-left p-4 border-2 border-slate-100 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition font-medium text-slate-700 active:scale-95 disabled:opacity-50"
                         >
-                          {opt}
+                          {capitalize(opt)}
                         </button>
                       ))}
                     </>

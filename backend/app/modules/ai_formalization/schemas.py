@@ -29,6 +29,30 @@ class GuideStep(BaseModel):
     description: str = Field(
         ..., min_length=10, max_length=1000, description="Descrição detalhada do passo"
     )
+    documents_checklist: list[str] | None = Field(
+        None,
+        description="Lista de documentos necessários para este passo específico"
+    )
+    address: str | None = Field(
+        None,
+        max_length=500,
+        description="Endereço completo formatado (rua, número, bairro, cidade, CEP) quando aplicável"
+    )
+    map_link: str | None = Field(
+        None,
+        max_length=500,
+        description="Link para Google Maps com busca ou rota predefinida"
+    )
+    phone: str | None = Field(
+        None,
+        max_length=50,
+        description="Telefone de contato quando aplicável"
+    )
+    opening_hours: str | None = Field(
+        None,
+        max_length=200,
+        description="Horário de funcionamento quando aplicável"
+    )
 
 
 class ConfidenceLevel(str):
