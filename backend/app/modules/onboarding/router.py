@@ -12,6 +12,7 @@ from app.modules.auth.dependencies import CurrentUser
 from app.modules.onboarding.schemas import (
     OnboardingAnswerCreate,
     OnboardingAnswerResponse,
+    OnboardingPreferenceResponse,
     OnboardingStatusResponse,
     ProducerOnboardingSummary,
 )
@@ -111,6 +112,43 @@ async def seed_questions(
     """
     await service.seed_default_questions()
     return {"message": "Questions seeded successfully"}
+
+
+@router.get(
+    "/preference",
+    response_model=OnboardingPreferenceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get onboarding preference",
+    description="Get user's preference for audio or text communication from onboarding.",
+)
+async def get_onboarding_preference(
+    current_user: CurrentUser,
+    service: OnboardingService = Depends(get_onboarding_service),
+) -> OnboardingPreferenceResponse:
+    """
+    Get user's preference for audio or text communication from onboarding.
+    
+    Returns the answer to the preferences_1 question (prefers_audio flag).
+    If the question hasn't been answered yet, returns prefers_audio=False.
+    """
+    user_id = str(current_user.id)
+    
+    # Get answer for preferences_1 question
+    answer_value = await service.get_answer_value(user_id, "preferences_1")
+    
+    # Convert answer to boolean
+    # Answer can be "sim", "não", True, False, etc.
+    prefers_audio = False
+    if answer_value is not None:
+        if isinstance(answer_value, str):
+            prefers_audio = answer_value.lower() in ["sim", "yes", "true", "1"]
+        else:
+            prefers_audio = bool(answer_value)
+    
+    return OnboardingPreferenceResponse(
+        prefers_audio=prefers_audio,
+        question_id="preferences_1" if answer_value is not None else None,
+    )
 
 
 @router.post(

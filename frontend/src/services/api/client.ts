@@ -98,6 +98,32 @@ export async function apiRequest<T>(
 }
 
 /**
+ * Normalize upload URL by replacing internal Docker hostnames with API_BASE_URL
+ */
+export function normalizeUploadUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    // Check if it's an internal Docker hostname
+    const internalHosts = ['backend', 'backend:8000', 'localhost:8000'];
+    if (internalHosts.some(host => urlObj.host === host || urlObj.hostname === host.split(':')[0])) {
+      // Extract the path and replace with API_BASE_URL
+      return `${API_BASE_URL}${urlObj.pathname}${urlObj.search}`;
+    }
+    // Return as-is if it's already a valid external URL
+    return url;
+  } catch {
+    // If URL parsing fails, check if it starts with internal patterns
+    if (url.startsWith('http://backend:8000/') || url.startsWith('http://backend/')) {
+      return url.replace(/^http:\/\/backend(:8000)?\//, `${API_BASE_URL}/`);
+    }
+    if (url.startsWith('http://localhost:8000/')) {
+      return url.replace(/^http:\/\/localhost:8000\//, `${API_BASE_URL}/`);
+    }
+    return url;
+  }
+}
+
+/**
  * Make API request with file upload
  */
 export async function apiRequestFile<T>(

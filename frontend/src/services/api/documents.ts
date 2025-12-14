@@ -2,7 +2,7 @@
  * Documents API service
  */
 
-import { apiRequest, apiRequestFile } from './client';
+import { apiRequest, apiRequestFile, normalizeUploadUrl } from './client';
 import { API_ENDPOINTS } from './config';
 import type {
   DocumentCreate,
@@ -24,9 +24,17 @@ export async function uploadFileToPresignedUrl(
   uploadUrl: string,
   file: File
 ): Promise<void> {
-  await apiRequestFile<void>(uploadUrl.replace(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000', ''), file, {
+  const normalizedUrl = normalizeUploadUrl(uploadUrl);
+  const response = await fetch(normalizedUrl, {
     method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+    },
   });
+  if (!response.ok) {
+    throw new Error(`Upload failed with status ${response.status}`);
+  }
 }
 
 export async function createDocument(data: DocumentCreate): Promise<DocumentResponse> {
@@ -66,8 +74,9 @@ export async function uploadDocument(
     content_type: file.type || 'application/octet-stream',
   });
 
-  // Step 2: Upload file to presigned URL
-  await fetch(presignResponse.upload_url, {
+  // Step 2: Upload file to presigned URL (normalize to handle internal Docker URLs)
+  const normalizedUploadUrl = normalizeUploadUrl(presignResponse.upload_url);
+  await fetch(normalizedUploadUrl, {
     method: 'PUT',
     body: file,
     headers: {

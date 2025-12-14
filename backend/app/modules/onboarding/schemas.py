@@ -122,3 +122,14 @@ class ProducerOnboardingSummary(BaseModel):
     completed_tasks: int = 0
 
     model_config = {"populate_by_name": True}
+
+
+class OnboardingPreferenceResponse(BaseModel):
+    """Schema for onboarding preference response."""
+
+    prefers_audio: bool = Field(
+        default=False, description="Se o usuário prefere receber ajuda por áudio"
+    )
+    question_id: str | None = Field(
+        None, description="ID da pergunta de preferência (preferences_1)"
+    )

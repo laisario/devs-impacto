@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from './config';
 import type {
   OnboardingAnswerCreate,
   OnboardingAnswerResponse,
+  OnboardingPreferenceResponse,
   OnboardingStatusResponse,
   ProducerOnboardingSummary,
 } from './types';
@@ -26,6 +27,10 @@ export async function getOnboardingStatus(): Promise<OnboardingStatusResponse> {
 
 export async function getOnboardingSummary(): Promise<ProducerOnboardingSummary> {
   return apiRequest<ProducerOnboardingSummary>(API_ENDPOINTS.onboarding.summary);
+}
+
+export async function getOnboardingPreference(): Promise<OnboardingPreferenceResponse> {
+  return apiRequest<OnboardingPreferenceResponse>(API_ENDPOINTS.onboarding.preference);
 }
 
 export async function updateProfileField(

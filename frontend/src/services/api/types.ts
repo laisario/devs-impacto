@@ -160,6 +160,11 @@ export interface ProducerOnboardingSummary {
   completed_tasks: number;
 }
 
+export interface OnboardingPreferenceResponse {
+  prefers_audio: boolean;
+  question_id?: string | null;
+}
+
 // Formalization types
 export interface FormalizationStatusResponse {
   is_eligible: boolean;

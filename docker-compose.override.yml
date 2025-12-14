@@ -7,13 +7,30 @@ services:
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
+      # Mount Google credentials
+      - ./backend/credentials:/app/credentials:ro
     environment:
       - MONGODB_URI=mongodb+srv://admin:jQs2xrlrLhK6Ure3@hackasdb.bhcckki.mongodb.net/
       # Ou use a Deco API (sem necessidade de API key):
       - LLM_PROVIDER=deco
       - DECO_API_URL=https://api.decocms.com/hackathon2/belo-projeto/triggers/5013e0dc-38dd-4af8-ad35-8c19cd2094cf
+      # Google Cloud Speech & TTS (para áudio):
+      # Opção 1: Via arquivo (desenvolvimento local)
+      - AUDIO_PROVIDER=google
+      - GOOGLE_CLOUD_PROJECT_ID=automatic-array-276122
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/google-credentials.json
+      # Opção 2: Via variável de ambiente JSON (produção/Render)
+      # - GOOGLE_CREDENTIALS_JSON='{"type":"service_account",...}'  # Cole o JSON completo aqui
       # Google Places API (opcional, para buscar endereços reais de órgãos):
       # - GOOGLE_PLACES_API_KEY=sua-chave-google-places-aqui
+      # Storage Provider (Cloudflare R2 - S3 compatible):
+      - STORAGE_PROVIDER=s3
+      - S3_BUCKET_NAME=hackas-bucket
+      - S3_ENDPOINT_URL=https://7df0d23556ddbea3607ced2ccfacb19d.r2.cloudflarestorage.com
+      - S3_REGION_NAME=auto  # R2 sempre usa "auto"
+      - S3_ACCESS_KEY_ID=ac8b941ff05c6c819d5fa9a0f7d525e5  # Ainda precisa configurar: veja instruções abaixo
+      - S3_SECRET_ACCESS_KEY=a5537fa1cb01dfb3c75a3313e9ef8243466874a029baea857cc8d59be949e2a1  # Ainda precisa configurar: veja instruções abaixo
+      - S3_PUBLIC_URL=https://hackas-bucket.7df0d23556ddbea3607ced2ccfacb19d.r2.cloudflarestorage.com
 
   frontend:
     volumes:

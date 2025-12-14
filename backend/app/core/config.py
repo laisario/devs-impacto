@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     # Storage Provider
     storage_provider: str = "mock"  # mock | s3 | gcs
     mock_storage_base_url: str = "http://localhost:8000/mock-storage"
+    gcs_bucket_name: str | None = None  # GCS bucket name for file storage
+    # S3/R2 Settings (Cloudflare R2 is S3-compatible)
+    s3_bucket_name: str | None = None
+    s3_endpoint_url: str | None = None  # For R2: https://<account-id>.r2.cloudflarestorage.com
+    s3_region_name: str = "auto"  # R2 uses "auto"
+    s3_access_key_id: str | None = None
+    s3_secret_access_key: str | None = None
+    s3_public_url: str | None = None  # Public URL pattern, e.g., https://<bucket>.<account>.r2.cloudflarestorage.com
 
     # OTP Settings (mock)
     otp_code_mock: str = "123456"  # Fixed OTP for development
@@ -43,6 +51,12 @@ class Settings(BaseSettings):
     
     # Google Places API (for finding office addresses)
     google_places_api_key: str | None = None
+    
+    # Google Cloud Speech & TTS
+    google_cloud_project_id: str | None = None
+    google_application_credentials: str | None = None  # Path to JSON credentials file (deprecated, use GOOGLE_CREDENTIALS_JSON)
+    google_credentials_json: str | None = None  # JSON credentials as string (for environment variables)
+    audio_provider: str = "openai"  # openai | google | mock
 
 
 @lru_cache

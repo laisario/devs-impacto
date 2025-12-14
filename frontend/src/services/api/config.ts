@@ -22,6 +22,7 @@ export const API_ENDPOINTS = {
     answer: '/onboarding/answer',
     status: '/onboarding/status',
     summary: '/onboarding/summary',
+    preference: '/onboarding/preference',
     updateProfileField: '/onboarding/update-profile-field',
   },
   formalization: {
@@ -35,6 +36,9 @@ export const API_ENDPOINTS = {
   ai: {
     guide: '/ai/formalization/guide',
     chat: '/ai/chat/message',
+    chatV2: '/ai/chat/message/v2',
+    transcribeAudio: '/ai/chat/audio/transcribe',
+    synthesizeSpeech: '/ai/chat/audio/speak',
   },
   salesProject: {
     draft: '/sales-project/draft',
