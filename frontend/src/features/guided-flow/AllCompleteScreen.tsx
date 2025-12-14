@@ -4,18 +4,14 @@ import { ScreenWrapper } from '../shared/ScreenWrapper';
 
 interface AllCompleteScreenProps {
   score?: number;
-  onViewProject: () => void;
+  onViewProject?: () => void;
 }
 
-export function AllCompleteScreen({ score = 100, onViewProject }: AllCompleteScreenProps) {
+export function AllCompleteScreen({ score = 100 }: AllCompleteScreenProps) {
   return (
     <ScreenWrapper
       title="Parabéns! Você está pronto!"
       subtitle="Você completou todas as tarefas e está pronto para vender para escolas públicas."
-      primaryAction={{
-        label: 'Ver meu projeto de venda',
-        onClick: onViewProject,
-      }}
       className="bg-gradient-to-br from-green-50 via-emerald-50 to-green-100"
     >
       <div className="flex flex-col items-center mb-8">
@@ -59,7 +55,7 @@ export function AllCompleteScreen({ score = 100, onViewProject }: AllCompleteScr
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
               <p className="text-sm text-slate-700 leading-relaxed">
-                Você pode criar seu projeto de venda personalizado
+                Você pode criar seu projeto de venda quando quiser
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -67,7 +63,7 @@ export function AllCompleteScreen({ score = 100, onViewProject }: AllCompleteScr
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
               <p className="text-sm text-slate-700 leading-relaxed">
-                Está tudo certo para participar de editais públicos
+                Fique de olho nos editais públicos da sua região
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -75,7 +71,7 @@ export function AllCompleteScreen({ score = 100, onViewProject }: AllCompleteScr
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
               <p className="text-sm text-slate-700 leading-relaxed">
-                Pode começar a vender para escolas agora mesmo
+                Está tudo certo para participar e começar a vender
               </p>
             </div>
           </div>

@@ -36,7 +36,7 @@ export function EligibilityScreen({
 
   const getExplanation = () => {
     if (isEligible) {
-      return 'Parabéns! Você completou tudo que precisa. Agora pode criar seu projeto de venda.';
+      return 'Parabéns! Você completou tudo que precisa. Você pode criar seu projeto de venda quando quiser. Fique de olho nos editais públicos da sua região para participar!';
     }
     if (eligibilityLevel === 'partially_eligible') {
       return 'Você já fez bastante coisa! Complete as tarefas que faltam para poder vender.';
@@ -52,9 +52,9 @@ export function EligibilityScreen({
     <ScreenWrapper
       title={getTitle()}
       subtitle={getSubtitle()}
-      primaryAction={{
-        label: isEligible ? 'Criar projeto de venda' : 'Ver o que falta',
-        onClick: isEligible ? onCreateProject : onViewTasks,
+      primaryAction={isEligible ? undefined : {
+        label: 'Ver o que falta',
+        onClick: onViewTasks,
       }}
       showBack={!!onBack}
       onBack={onBack}
