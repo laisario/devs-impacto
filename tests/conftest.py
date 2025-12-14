@@ -92,36 +92,6 @@ async def auth_headers(client: AsyncClient) -> dict[str, str]:
 
 
 @pytest.fixture
-async def sample_call(client: AsyncClient, auth_headers: dict[str, str]) -> dict[str, Any]:
-    """Create a sample call for proposals."""
-    call_data = {
-        "number": "CP 001/2025",
-        "entity_name": "Prefeitura Municipal de Exemplo",
-        "entity_cnpj": "12345678000190",
-        "description": "Chamada pública para aquisição de gêneros alimentícios",
-        "products": [
-            {
-                "name": "Alface",
-                "unit": "kg",
-                "quantity": 100,
-                "unit_price": 5.50,
-            },
-            {
-                "name": "Tomate",
-                "unit": "kg",
-                "quantity": 200,
-                "unit_price": 8.00,
-            },
-        ],
-        "delivery_schedule": "Entregas semanais às segundas e quartas",
-        "submission_deadline": "2025-12-31T23:59:59",
-    }
-
-    response = await client.post("/calls", json=call_data, headers=auth_headers)
-    return response.json()
-
-
-@pytest.fixture
 async def sample_producer_profile(
     client: AsyncClient,
     auth_headers: dict[str, str],

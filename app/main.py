@@ -6,14 +6,12 @@ FastAPI application for guiding small producers through PNAE public call process
 This API helps family farmers (agricultura familiar) to:
 1. Register as producers (formal/informal/individual)
 2. Organize required documents (Envelope 01)
-3. Create sales projects with products, prices and schedules
-4. Generate PDF of "Projeto de Venda" for submission
+3. Complete onboarding and formalization process
 
 PNAE Reference:
 - Programa Nacional de Alimentação Escolar
 - Art. 24: Family agriculture purchases via public call (dispensa de licitação)
 - Envelope 01: Qualification documents
-- Envelope 02: Sales Project (Projeto de Venda)
 """
 
 from collections.abc import AsyncIterator
@@ -25,11 +23,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.db import close_db, connect_db
 from app.core.errors import register_exception_handlers
+from app.modules.ai_formalization.router import router as ai_formalization_router
 from app.modules.auth.router import router as auth_router
-from app.modules.calls.router import router as calls_router
 from app.modules.documents.router import router as documents_router
+from app.modules.formalization.router import router as formalization_router
+from app.modules.onboarding.router import router as onboarding_router
 from app.modules.producers.router import router as producers_router
-from app.modules.sales_projects.router import router as sales_projects_router
 
 
 @asynccontextmanager
@@ -59,7 +58,7 @@ def create_app() -> FastAPI:
         title="PNAE Simplificado API",
         description=(
             "API para guiar pequenos produtores (agricultura familiar) "
-            "a vender para o PNAE via Chamada Pública."
+            "no processo de formalização para vender para o PNAE."
         ),
         version="0.1.0",
         lifespan=lifespan,
@@ -82,9 +81,10 @@ def create_app() -> FastAPI:
     # Register routers
     app.include_router(auth_router)
     app.include_router(producers_router)
-    app.include_router(calls_router)
     app.include_router(documents_router)
-    app.include_router(sales_projects_router)
+    app.include_router(onboarding_router)
+    app.include_router(formalization_router)
+    app.include_router(ai_formalization_router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict[str, str]:

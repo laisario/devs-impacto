@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     otp_code_mock: str = "123456"  # Fixed OTP for development
     otp_expire_minutes: int = 5
 
+    # LLM Settings
+    openai_api_key: str | None = None
+    llm_provider: str = "mock"  # openai | mock
+    llm_model: str = "gpt-4o-mini"
+    rag_embedding_model: str = "text-embedding-3-small"
+
 
 @lru_cache
 def get_settings() -> Settings:

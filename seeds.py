@@ -34,9 +34,7 @@ async def seed_database() -> None:
     print("Clearing existing data...")
     await db.users.delete_many({})
     await db.producer_profiles.delete_many({})
-    await db.calls_for_proposals.delete_many({})
     await db.documents.delete_many({})
-    await db.sales_projects.delete_many({})
 
     now = datetime.now(UTC)
 
@@ -71,74 +69,6 @@ async def seed_database() -> None:
     })
     profile_id = profile_result.inserted_id
     print(f"  Created producer profile: {profile_id}")
-
-    # Create sample calls for proposals
-    print("Creating sample calls for proposals...")
-
-    calls_data = [
-        {
-            "number": "CP 001/2025",
-            "entity_name": "Prefeitura Municipal de Campinas",
-            "entity_cnpj": "51885242000140",
-            "description": (
-                "Chamada Pública para aquisição de gêneros alimentícios da agricultura "
-                "familiar para alimentação escolar, conforme Lei nº 11.947/2009 e "
-                "Resolução FNDE nº 06/2020."
-            ),
-            "products": [
-                {"name": "Alface Crespa", "unit": "kg", "quantity": 500, "unit_price": 5.50},
-                {"name": "Tomate Salada", "unit": "kg", "quantity": 800, "unit_price": 8.00},
-                {"name": "Cenoura", "unit": "kg", "quantity": 400, "unit_price": 4.50},
-                {"name": "Banana Nanica", "unit": "kg", "quantity": 600, "unit_price": 4.00},
-                {"name": "Laranja Pera", "unit": "kg", "quantity": 500, "unit_price": 3.50},
-            ],
-            "delivery_schedule": (
-                "Entregas semanais às terças e quintas-feiras, "
-                "das 7h às 11h, no almoxarifado central."
-            ),
-            "submission_deadline": now + timedelta(days=30),
-            "status": "open",
-            "created_at": now,
-        },
-        {
-            "number": "CP 002/2025",
-            "entity_name": "Secretaria Municipal de Educação de Piracicaba",
-            "entity_cnpj": "45789012000156",
-            "description": (
-                "Chamada Pública para aquisição de hortaliças e frutas orgânicas "
-                "da agricultura familiar para o Programa Nacional de Alimentação Escolar."
-            ),
-            "products": [
-                {"name": "Alface Americana Orgânica", "unit": "kg", "quantity": 200, "unit_price": 9.00},
-                {"name": "Rúcula Orgânica", "unit": "maço", "quantity": 300, "unit_price": 4.00},
-                {"name": "Couve Manteiga Orgânica", "unit": "maço", "quantity": 400, "unit_price": 3.50},
-                {"name": "Morango Orgânico", "unit": "kg", "quantity": 150, "unit_price": 25.00},
-            ],
-            "delivery_schedule": "Entregas quinzenais, conforme cronograma a ser definido.",
-            "submission_deadline": now + timedelta(days=45),
-            "status": "open",
-            "created_at": now,
-        },
-        {
-            "number": "CP 003/2025",
-            "entity_name": "Prefeitura Municipal de Ribeirão Preto",
-            "entity_cnpj": "56789012000167",
-            "description": "Aquisição de leite e derivados da agricultura familiar.",
-            "products": [
-                {"name": "Leite Pasteurizado", "unit": "litro", "quantity": 2000, "unit_price": 4.50},
-                {"name": "Queijo Minas Frescal", "unit": "kg", "quantity": 300, "unit_price": 35.00},
-                {"name": "Iogurte Natural", "unit": "litro", "quantity": 500, "unit_price": 8.00},
-            ],
-            "delivery_schedule": "Entregas diárias de segunda a sexta.",
-            "submission_deadline": now + timedelta(days=15),
-            "status": "draft",
-            "created_at": now,
-        },
-    ]
-
-    for call_data in calls_data:
-        result = await db.calls_for_proposals.insert_one(call_data)
-        print(f"  Created call '{call_data['number']}': {result.inserted_id}")
 
     # Create sample documents
     print("Creating sample documents...")

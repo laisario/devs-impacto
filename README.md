@@ -116,7 +116,15 @@ pytest -v
 
 # Com cobertura
 pytest --cov=app
+
+# Testar módulo AI Formalization
+pytest tests/test_ai_formalization.py -v
+
+# Teste rápido via script (requer servidor rodando)
+./scripts/test_ai_formalization.sh
 ```
+
+**Ver também:** [TESTING_AI_FORMALIZATION.md](TESTING_AI_FORMALIZATION.md) - Guia completo de testes do módulo AI
 
 ## Linting e Formatação
 
@@ -191,33 +199,6 @@ curl -X GET http://localhost:8000/producer-profile \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
-### Chamadas Públicas
-
-```bash
-# Listar chamadas públicas (público)
-curl -X GET "http://localhost:8000/calls?skip=0&limit=10"
-
-# Obter detalhes de uma chamada
-curl -X GET http://localhost:8000/calls/CALL_ID
-
-# Criar chamada pública (requer auth)
-curl -X POST http://localhost:8000/calls \
-  -H "Authorization: Bearer SEU_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "number": "CP 001/2025",
-    "entity_name": "Prefeitura Municipal de Exemplo",
-    "entity_cnpj": "12345678000190",
-    "description": "Aquisição de gêneros alimentícios",
-    "products": [
-      {"name": "Alface", "unit": "kg", "quantity": 100, "unit_price": 5.50},
-      {"name": "Tomate", "unit": "kg", "quantity": 200, "unit_price": 8.00}
-    ],
-    "delivery_schedule": "Entregas semanais",
-    "submission_deadline": "2025-12-31T23:59:59"
-  }'
-```
-
 ### Documentos
 
 ```bash
@@ -247,42 +228,49 @@ curl -X GET http://localhost:8000/documents \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
-### Projeto de Venda
+### Onboarding e Formalização
 
 ```bash
-# Criar projeto de venda
-curl -X POST http://localhost:8000/sales-projects \
+# Responder pergunta de onboarding (uma por vez, incremental)
+curl -X POST http://localhost:8000/onboarding/answer \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "call_id": "CALL_ID_AQUI",
-    "items": [
-      {
-        "product_name": "Alface Crespa",
-        "unit": "kg",
-        "quantity": 50,
-        "unit_price": 5.00,
-        "delivery_schedule": "Março/2025, Abril/2025"
-      },
-      {
-        "product_name": "Tomate Salada",
-        "unit": "kg",
-        "quantity": 100,
-        "unit_price": 7.50,
-        "delivery_schedule": "Março/2025"
-      }
-    ]
+    "question_id": "has_cpf",
+    "answer": true
   }'
 
-# Obter projeto
-curl -X GET http://localhost:8000/sales-projects/PROJECT_ID \
+# Obter status do onboarding
+curl -X GET http://localhost:8000/onboarding/status \
   -H "Authorization: Bearer SEU_TOKEN"
 
-# Gerar PDF do projeto
-curl -X POST http://localhost:8000/sales-projects/PROJECT_ID/generate-pdf \
+# Resposta: {"status": "in_progress", "progress_percentage": 14.3, ...}
+
+# Obter diagnóstico de formalização
+curl -X GET http://localhost:8000/formalization/status \
   -H "Authorization: Bearer SEU_TOKEN"
 
-# Resposta: {"pdf_url": "...", "message": "PDF gerado com sucesso"}
+# Resposta: {"is_eligible": false, "eligibility_level": "partially_eligible", "score": 65, ...}
+
+# Obter tarefas de formalização
+curl -X GET http://localhost:8000/formalization/tasks \
+  -H "Authorization: Bearer SEU_TOKEN"
+
+# Resposta: [{"task_id": "obtain_cpf", "title": "Obter CPF", "priority": "high", ...}, ...]
+```
+
+### AI Formalization Guide
+
+```bash
+# Gerar guia personalizado para um requisito específico
+curl -X POST http://localhost:8000/ai/formalization/guide \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requirement_id": "has_cpf"
+  }'
+
+# Resposta: {"summary": "...", "steps": [...], "estimated_time_days": 7, ...}
 ```
 
 ## Estrutura do Projeto
@@ -301,14 +289,20 @@ curl -X POST http://localhost:8000/sales-projects/PROJECT_ID/generate-pdf \
 │   ├── modules/
 │   │   ├── auth/           # Autenticação OTP + JWT
 │   │   ├── producers/      # Perfil do produtor
-│   │   ├── calls/          # Chamadas públicas
 │   │   ├── documents/      # Upload de documentos
-│   │   └── sales_projects/ # Projeto de venda + PDF
+│   │   ├── onboarding/     # Onboarding guiado
+│   │   ├── formalization/  # Diagnóstico de formalização
+│   │   └── ai_formalization/ # Agente AI para guias de formalização
 │   └── shared/
 │       ├── pagination.py   # Paginação
 │       └── utils.py        # Utilitários
 ├── tests/
 ├── seeds.py                # Dados de teste
+├── seeds_onboarding.py     # Seeds para perguntas de onboarding
+├── scripts/
+│   ├── create_indexes.py   # Criar índices MongoDB
+│   ├── ingest_rag_documents.py  # Ingestão de PDFs no RAG
+│   └── ingest_rag_manual.py     # Ingestão manual de chunks RAG
 └── pyproject.toml
 ```
 
@@ -340,15 +334,91 @@ curl -X POST http://localhost:8000/sales-projects/PROJECT_ID/generate-pdf \
 | GET | `/auth/me` | Dados do usuário | Sim |
 | PUT | `/producer-profile` | Criar/atualizar perfil | Sim |
 | GET | `/producer-profile` | Obter perfil | Sim |
-| POST | `/calls` | Criar chamada | Sim |
-| GET | `/calls` | Listar chamadas | Não |
-| GET | `/calls/{id}` | Detalhes da chamada | Não |
 | POST | `/documents/presign` | URL para upload | Sim |
 | POST | `/documents` | Registrar documento | Sim |
 | GET | `/documents` | Listar documentos | Sim |
-| POST | `/sales-projects` | Criar projeto | Sim |
-| GET | `/sales-projects/{id}` | Obter projeto | Sim |
-| POST | `/sales-projects/{id}/generate-pdf` | Gerar PDF | Sim |
+| POST | `/onboarding/answer` | Responder pergunta de onboarding | Sim |
+| GET | `/onboarding/status` | Status do onboarding | Sim |
+| GET | `/onboarding/summary` | Resumo agregado (onboarding + formalização) | Sim |
+| GET | `/formalization/status` | Status de elegibilidade | Sim |
+| GET | `/formalization/tasks` | Tarefas de formalização | Sim |
+| POST | `/ai/formalization/guide` | Gerar guia personalizado de formalização | Sim |
+
+## Onboarding e Formalização
+
+O sistema inclui um módulo de onboarding guiado e diagnóstico de formalização:
+
+### Onboarding
+
+- **Incremental**: Responda uma pergunta por vez, pode parar e voltar quando quiser
+- **Não bloqueia**: O onboarding é opcional, não afeta o uso do sistema existente
+- **Progresso**: Sistema rastreia automaticamente o progresso e mostra próxima pergunta
+- **Perguntas simples**: Linguagem clara pensada para baixa alfabetização
+
+### Formalização
+
+- **Diagnóstico automático**: Calculado automaticamente baseado nas respostas do onboarding
+- **Elegibilidade**: Determina se o produtor está apto para vender em programas públicos (PNAE, PAA)
+- **Tarefas guiadas**: Lista de tarefas personalizadas para ajudar na formalização
+- **Recomendações**: Sugestões práticas de como melhorar a elegibilidade
+
+### AI Formalization (RAG)
+
+- **Guia personalizado**: Gera passo a passo adaptado ao perfil usando AI
+- **RAG-powered**: Usa documentos oficiais como base de conhecimento
+- **Linguagem simples**: Explicações claras para baixa alfabetização
+
+**Injetar documentos no RAG:**
+```bash
+# Método 1: Ingestão manual (rápido para testes)
+python scripts/ingest_rag_manual.py
+
+# Método 2: Ingestão de arquivos de texto limpos (produção)
+# 1. Coloque arquivos .txt já limpos em data/rag_text/
+# 2. python scripts/ingest_rag_documents.py
+# O sistema classifica automaticamente usando LLM!
+```
+
+**Ver também:** [RAG_INGESTION_GUIDE.md](RAG_INGESTION_GUIDE.md) - Guia completo de ingestão de documentos
+
+### Coleções MongoDB
+
+- `onboarding_questions` - Perguntas de onboarding (configurável)
+- `onboarding_answers` - Respostas incrementais do onboarding (linkadas por `user_id`)
+- `formalization_status` - Cache do diagnóstico de elegibilidade (linkado por `user_id`)
+- `formalization_tasks` - Tarefas de formalização para cada usuário (linkadas por `user_id`)
+- `rag_chunks` - Chunks de documentos para RAG (têm `applies_to` com requirement IDs)
+
+### Estrutura de Dados Linkados
+
+Todas as informações estão linkadas através do `user_id` (ObjectId do usuário):
+
+```
+users (auth)
+  └── user_id
+      ├── producer_profiles (onboarding_status, onboarding_completed_at)
+      ├── onboarding_answers (todas as respostas)
+      ├── formalization_status (diagnóstico e pontuação)
+      └── formalization_tasks (lista de tarefas)
+```
+
+**Facilidades para usar essas informações:**
+
+1. **Endpoint agregado**: `GET /onboarding/summary` - retorna resumo completo com:
+   - Status e progresso do onboarding
+   - Pontuação e elegibilidade de formalização
+   - Contagem de tarefas e respostas
+   - Se tem perfil criado
+
+2. **Índices otimizados**: Script `scripts/create_indexes.py` cria índices para:
+   - Busca rápida por `user_id` em todas as coleções
+   - Índice único em `(user_id, question_id)` para evitar duplicatas
+   - Ordenação eficiente por data e prioridade
+
+3. **Métodos helpers**:
+   - `get_all_answers(user_id)` - Todas as respostas de um usuário
+   - `get_producer_summary(user_id)` - Resumo agregado completo
+   - `get_status(user_id)` - Status detalhado do onboarding
 
 ## Variáveis de Ambiente
 
@@ -360,6 +430,10 @@ curl -X POST http://localhost:8000/sales-projects/PROJECT_ID/generate-pdf \
 | `JWT_ALGORITHM` | Algoritmo JWT | `HS256` |
 | `JWT_EXPIRE_MINUTES` | Expiração do token | `1440` (24h) |
 | `STORAGE_PROVIDER` | Provider de storage | `mock` |
+| `OPENAI_API_KEY` | Chave API OpenAI (para AI formalization) | (opcional) |
+| `LLM_PROVIDER` | Provider LLM (openai/mock) | `mock` |
+| `LLM_MODEL` | Modelo LLM a usar | `gpt-4o-mini` |
+| `RAG_EMBEDDING_MODEL` | Modelo de embeddings | `text-embedding-3-small` |
 
 ## Licença
 

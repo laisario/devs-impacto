@@ -14,6 +14,7 @@ from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.modules.onboarding.schemas import OnboardingStatus
 from app.shared.utils import PyObjectId
 
 
@@ -117,6 +118,14 @@ class ProducerProfileResponse(ProducerProfileBase):
     created_at: datetime
     updated_at: datetime
 
+    # Onboarding fields (optional, added by onboarding module)
+    onboarding_status: OnboardingStatus | None = Field(
+        None, description="Status do processo de onboarding"
+    )
+    onboarding_completed_at: datetime | None = Field(
+        None, description="Data de conclusão do onboarding"
+    )
+
     model_config = {"populate_by_name": True}
 
 
@@ -127,6 +136,14 @@ class ProducerProfileInDB(ProducerProfileBase):
     user_id: PyObjectId
     created_at: datetime
     updated_at: datetime
+
+    # Onboarding fields (optional, added by onboarding module)
+    onboarding_status: OnboardingStatus | None = Field(
+        None, description="Status do processo de onboarding"
+    )
+    onboarding_completed_at: datetime | None = Field(
+        None, description="Data de conclusão do onboarding"
+    )
 
     model_config = {"populate_by_name": True}
 

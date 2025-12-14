@@ -21,6 +21,7 @@ FROM base AS development
 # Install all dependencies including dev
 COPY pyproject.toml .
 RUN pip install -e ".[dev]" --no-cache-dir || pip install . --no-cache-dir
+RUN pip install -e ".[pdf]" --no-cache-dir || pip install . --no-cache-dir
 
 COPY . .
 
