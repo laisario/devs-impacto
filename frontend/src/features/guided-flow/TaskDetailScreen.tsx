@@ -13,6 +13,7 @@ interface TaskDetailScreenProps {
   onUploadDocument: () => void;
   onMarkComplete: () => void;
   onBack: () => void;
+  isCompleting?: boolean;
 }
 
 export function TaskDetailScreen({
@@ -22,6 +23,7 @@ export function TaskDetailScreen({
   onUploadDocument,
   onMarkComplete,
   onBack,
+  isCompleting = false,
 }: TaskDetailScreenProps) {
   const [guide, setGuide] = useState<FormalizationGuideResponse | null>(null);
   const [isLoadingGuide, setIsLoadingGuide] = useState(false);
@@ -44,8 +46,19 @@ export function TaskDetailScreen({
         });
         setGuide(generatedGuide);
       } catch (err) {
+        console.error('Error loading guide:', err);
         if (err instanceof ApiClientError) {
-          setGuideError(err.message || 'Erro ao carregar guia. Tente novamente.');
+          // Handle 404 specifically - requirement_id not found or endpoint not available
+          if (err.status === 404) {
+            // Don't show error if requirement_id doesn't exist - it's expected for some tasks
+            setGuideError('');
+            console.warn(`Guide not available for requirement_id: ${task.requirementId}`);
+          } else if (err.status === 0 || err.status >= 500) {
+            // Network error or server error
+            setGuideError('Não foi possível conectar ao servidor. Verifique sua conexão.');
+          } else {
+            setGuideError(err.message || 'Erro ao carregar guia. Tente novamente.');
+          }
         } else {
           setGuideError('Erro ao carregar guia. Tente novamente.');
         }
@@ -68,10 +81,12 @@ export function TaskDetailScreen({
           ? {
               label: 'Enviar documento',
               onClick: onUploadDocument,
+              disabled: isCompleting,
             }
           : {
-              label: 'Marcar como feito',
+              label: isCompleting ? 'Salvando...' : 'Marcar como feito',
               onClick: onMarkComplete,
+              disabled: isCompleting,
             }
       }
       showBack

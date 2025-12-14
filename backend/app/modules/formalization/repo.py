@@ -99,11 +99,13 @@ class FormalizationRepository:
             # - "dap_caf" (não "has_family_farmer_registration")
             # - "bank_statement" (não "has_bank_account")
             # - "has_cpf" ou "cpf"
+            # - "cnpj" para CNPJ
             task_to_requirement_map = {
                 "HAS_CPF": "has_cpf",  # Sistema pode usar "has_cpf" ou "cpf"
                 "HAS_FAMILY_FARMER_REGISTRATION": "dap_caf",  # Sistema IA usa "dap_caf"
                 "HAS_BANK_ACCOUNT": "bank_statement",  # Sistema IA usa "bank_statement"
                 "HAS_ADDRESS_PROOF": "proof_address",  # Sistema IA usa "proof_address"
+                "HAS_CNPJ": "cnpj",  # Sistema IA usa "cnpj"
                 "SALES_PROJECT_READY": None,  # Não tem requirement_id específico
                 "PUBLIC_CALL_SUBMISSION_READY": None,  # Não tem requirement_id específico
                 "PRODUCTION_IS_ELIGIBLE": None,  # Não tem requirement_id específico
@@ -159,30 +161,35 @@ class FormalizationRepository:
 
             if task_code in required_set:
                 # Task ainda é necessária - manter status se for "done", senão pode ser "pending"
-                # Mas atualizar requirement_id se não existir
+                # Mas atualizar requirement_id se não existir ou se estiver vazio
+                requirement_id = await self._get_requirement_id_for_task_code(task_code)
+                update_data: dict[str, Any] = {"updated_at": now}
+                
+                if requirement_id and (not existing_task.requirement_id or existing_task.requirement_id != requirement_id):
+                    update_data["requirement_id"] = requirement_id
+                
                 if existing_task.status == "done":
                     # Manter como done, mas atualizar requirement_id se necessário
-                    if not existing_task.requirement_id:
-                        requirement_id = await self._get_requirement_id_for_task_code(task_code)
-                        if requirement_id:
-                            await self.user_tasks_collection.update_one(
-                                {"_id": existing_task.id, "user_id": user_oid},
-                                {"$set": {"requirement_id": requirement_id, "updated_at": now}},
-                            )
+                    if update_data.get("requirement_id"):
+                        await self.user_tasks_collection.update_one(
+                            {"_id": existing_task.id, "user_id": user_oid},
+                            {"$set": update_data},
+                        )
                     continue
                 elif existing_task.status == "skipped":
                     # Reativar task que estava skipped e atualizar requirement_id
-                    requirement_id = await self._get_requirement_id_for_task_code(task_code)
-                    update_data = {
-                        "status": "pending",
-                        "updated_at": now,
-                    }
-                    if requirement_id:
-                        update_data["requirement_id"] = requirement_id
+                    update_data["status"] = "pending"
                     await self.user_tasks_collection.update_one(
                         {"_id": existing_task.id, "user_id": user_oid},
                         {"$set": update_data},
                     )
+                elif existing_task.status == "pending":
+                    # Atualizar requirement_id mesmo para tasks pending
+                    if update_data.get("requirement_id"):
+                        await self.user_tasks_collection.update_one(
+                            {"_id": existing_task.id, "user_id": user_oid},
+                            {"$set": update_data},
+                        )
             else:
                 # Task não é mais necessária - marcar como skipped se não estiver done
                 if existing_task.status != "done":

@@ -48,7 +48,9 @@ export function TaskListScreen({ tasks, onStartFirstTask, onViewResult, onTaskCl
       title="O que você precisa fazer"
       subtitle={`Você tem ${totalCount} ${totalCount === 1 ? 'coisa' : 'coisas'} para completar. Vamos fazer uma de cada vez.`}
       primaryAction={{
-        label: pendingTasks.length > 0 ? 'Começar primeira tarefa' : 'Ver resultado',
+        label: pendingTasks.length > 0 
+          ? (completedCount > 0 ? 'Começar próxima tarefa' : 'Começar primeira tarefa')
+          : 'Ver resultado',
         onClick: pendingTasks.length > 0 ? onStartFirstTask : (onViewResult || onStartFirstTask),
         disabled: totalCount === 0,
       }}

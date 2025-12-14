@@ -232,8 +232,8 @@ export function OnboardingFlow({
     <div className="min-h-screen bg-white flex flex-col">
       <div className="w-full bg-slate-50 h-2">
         <div
-          className="bg-primary-500 h-2 transition-all duration-500"
-          style={{ width: `${progressPercent}%` }}
+          className="h-2 transition-all duration-500"
+          style={{ width: `${progressPercent}%`, backgroundColor: '#80EF8F' }}
         />
       </div>
 
@@ -272,7 +272,10 @@ export function OnboardingFlow({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-primary-500 text-white font-bold py-4 rounded-xl hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="text-white font-bold py-4 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{ backgroundColor: '#80EF8F' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6dd87a'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#80EF8F'}
             >
               {isSubmitting ? (
                 <>
@@ -333,16 +336,18 @@ export function OnboardingFlow({
                             disabled={isSubmitting}
                             className={`w-full text-left p-4 border-2 rounded-xl transition font-medium active:scale-95 disabled:opacity-50 flex items-center gap-3 ${
                               isSelected
-                                ? 'border-green-500 bg-green-50 text-slate-800'
+                                ? 'text-slate-800'
                                 : 'border-slate-100 hover:border-primary-500 hover:bg-primary-50 text-slate-700'
                             }`}
+                            style={isSelected ? { borderColor: '#80EF8F', backgroundColor: '#f0fdf4' } : {}}
                           >
                             <div
                               className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
                                 isSelected
-                                  ? 'bg-green-500 border-green-500'
+                                  ? ''
                                   : 'border-slate-300 bg-white'
                               }`}
+                              style={isSelected ? { backgroundColor: '#80EF8F', borderColor: '#80EF8F' } : {}}
                             >
                               {isSelected && (
                                 <svg
@@ -365,7 +370,10 @@ export function OnboardingFlow({
                       <button
                         onClick={handleMultiSelectSubmit}
                         disabled={isSubmitting || selectedOptions.length === 0}
-                        className="mt-4 bg-primary-500 text-white font-bold py-4 rounded-xl hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="mt-4 text-white font-bold py-4 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        style={{ backgroundColor: '#80EF8F' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6dd87a'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#80EF8F'}
                       >
                         {isSubmitting ? (
                           <>
@@ -408,7 +416,10 @@ export function OnboardingFlow({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-primary-500 text-white font-bold py-4 rounded-xl hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="text-white font-bold py-4 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style={{ backgroundColor: '#80EF8F' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6dd87a'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#80EF8F'}
                   >
                     {isSubmitting ? (
                       <>

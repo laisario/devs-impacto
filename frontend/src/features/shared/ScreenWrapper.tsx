@@ -75,14 +75,32 @@ export function ScreenWrapper({
               <button
                 onClick={primaryAction.onClick}
                 disabled={primaryAction.disabled}
-                className={`w-full min-h-[56px] px-6 py-4 rounded-xl font-bold text-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`w-full min-h-[56px] px-6 py-4 rounded-xl font-bold text-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                   primaryAction.variant === 'secondary'
-                    ? 'bg-white text-green-600 border-2 border-green-600 hover:bg-green-50'
-                    : 'bg-green-600 text-white hover:bg-green-700'
+                    ? 'bg-white border-2 hover:bg-primary-50'
+                    : 'text-white'
                 }`}
+                style={primaryAction.variant !== 'secondary' ? { backgroundColor: '#80EF8F' } : { color: '#80EF8F', borderColor: '#80EF8F' }}
+                onMouseEnter={(e) => {
+                  if (!primaryAction.disabled && primaryAction.variant !== 'secondary') {
+                    e.currentTarget.style.backgroundColor = '#6dd87a';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!primaryAction.disabled && primaryAction.variant !== 'secondary') {
+                    e.currentTarget.style.backgroundColor = '#80EF8F';
+                  }
+                }}
                 aria-label={primaryAction.label}
               >
-                {primaryAction.label}
+                {primaryAction.disabled && primaryAction.label.includes('Salvando') ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>{primaryAction.label}</span>
+                  </>
+                ) : (
+                  <span>{primaryAction.label}</span>
+                )}
               </button>
             )}
 

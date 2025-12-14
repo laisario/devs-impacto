@@ -44,6 +44,7 @@ export function GuidedFlow({ user, onLogout }: GuidedFlowProps) {
     score: number;
   } | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isCompletingTask, setIsCompletingTask] = useState(false);
 
   // Map backend task to frontend checklist item
   const mapTaskToChecklistItem = (task: FormalizationTaskUserResponse): ChecklistItem => ({
@@ -159,6 +160,7 @@ export function GuidedFlow({ user, onLogout }: GuidedFlowProps) {
     const task = checklist.find((t) => t.id === taskId);
     if (!task || !task.taskId) return;
 
+    setIsCompletingTask(true);
     try {
       await updateTaskStatus(task.taskId, 'done');
       const updatedChecklist = checklist.map((t) => 
@@ -194,6 +196,8 @@ export function GuidedFlow({ user, onLogout }: GuidedFlowProps) {
       } else {
         setError('Erro ao marcar tarefa. Tente novamente.');
       }
+    } finally {
+      setIsCompletingTask(false);
     }
   };
 
@@ -299,6 +303,17 @@ export function GuidedFlow({ user, onLogout }: GuidedFlowProps) {
     <>
       <OfflineBanner />
 
+      {/* Global header for task-list screen */}
+      {currentScreen === 'task-list' && onLogout && (
+        <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
+          <nav className="py-2 px-6 flex justify-end items-center max-w-6xl mx-auto w-full h-12">
+            <button onClick={onLogout} className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">
+              Sair
+            </button>
+          </nav>
+        </header>
+      )}
+
       {currentScreen === 'onboarding' && (
         <OnboardingScreen
           onComplete={handleOnboardingComplete}
@@ -359,6 +374,7 @@ export function GuidedFlow({ user, onLogout }: GuidedFlowProps) {
           onUploadDocument={handleUploadDocument}
           onMarkComplete={() => handleTaskComplete(currentTask.id)}
           onBack={refreshEligibilityAndGoToTaskList}
+          isCompleting={isCompletingTask}
         />
       )}
 

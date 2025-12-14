@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export function LandingPage({
@@ -5,6 +6,29 @@ export function LandingPage({
 }: {
   onStart: () => void;
 }) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleStart = async () => {
+    setIsLoading(true);
+    try {
+      await onStart();
+    } finally {
+      // Keep loading state for a bit to show feedback
+      setTimeout(() => setIsLoading(false), 500);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: '#80EF8F' }}></div>
+          <p className="text-slate-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
@@ -13,8 +37,9 @@ export function LandingPage({
             <img src="logo.png" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
           </div>
           <button
-            onClick={onStart}
-            className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors"
+            onClick={handleStart}
+            disabled={isLoading}
+            className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors disabled:opacity-50"
           >
             Entrar
           </button>
@@ -39,14 +64,24 @@ export function LandingPage({
 
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <button
-            onClick={onStart}
-            className="group text-white text-lg px-8 py-4 rounded-full font-bold transition-all flex items-center gap-3 shadow-lg"
+            onClick={handleStart}
+            disabled={isLoading}
+            className="group text-white text-lg px-8 py-4 rounded-full font-bold transition-all flex items-center gap-3 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: '#80EF8F', boxShadow: '0 10px 15px -3px rgba(128, 239, 143, 0.3)' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6dd87a'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#80EF8F'}
+            onMouseEnter={(e) => !isLoading && (e.currentTarget.style.backgroundColor = '#6dd87a')}
+            onMouseLeave={(e) => !isLoading && (e.currentTarget.style.backgroundColor = '#80EF8F')}
           >
-            Começar Gratuitamente
-            <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Carregando...</span>
+              </>
+            ) : (
+              <>
+                Começar Gratuitamente
+                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
           </button>
         </div>
 
@@ -54,7 +89,7 @@ export function LandingPage({
           {[
             { title: 'Diagnóstico Rápido', desc: 'Responda perguntas simples e saiba seu status real.' },
             { title: 'Lista do que Fazer', desc: 'Nada de listas genéricas. Passos focados na sua produção.' },
-            { title: 'Cofre de Documentos', desc: 'Guarde tudo em um lugar seguro.' },
+            { title: 'Seus Auxílios Estão Seguros', desc: 'Fique tranquilo, você não corre risco de perder seus auxílios governamentais ao se regularizar.' },
           ].map((feat) => (
             <div
               key={feat.title}
