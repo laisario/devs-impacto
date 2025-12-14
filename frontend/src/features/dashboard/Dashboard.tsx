@@ -7,7 +7,6 @@ import {
   Leaf,
   ShieldCheck,
   Upload,
-  User,
 } from 'lucide-react';
 import type { ChecklistItem, Document, UserProfile, DocumentType } from '../../domain/models';
 import { ChatWidget } from '../chat/ChatWidget';
@@ -195,13 +194,6 @@ export function Dashboard({
             <span className="font-bold text-slate-800 hidden sm:inline">CertificaFácil</span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-800">{user?.name || 'Usuário'}</p>
-              <p className="text-xs text-slate-500">{user?.city || ''}</p>
-            </div>
-            <div className="h-8 w-8 bg-slate-200 rounded-full flex items-center justify-center">
-              <User className="h-5 w-5 text-slate-500" />
-            </div>
             <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500">
               Sair
             </button>
