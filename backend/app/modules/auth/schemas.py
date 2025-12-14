@@ -11,39 +11,13 @@ from app.shared.utils import PyObjectId
 
 
 # Request schemas
-class AuthStartRequest(BaseModel):
-    """Request to start authentication (send OTP)."""
+class LoginRequest(BaseModel):
+    """Request to login with CPF."""
 
-    phone_e164: str = Field(
-        ...,
-        description="Phone number in E.164 format (e.g., +5511999999999)",
-        pattern=r"^\+[1-9]\d{1,14}$",
-        examples=["+5511999999999"],
-    )
-
-
-class AuthVerifyRequest(BaseModel):
-    """Request to verify OTP and get token."""
-
-    phone_e164: str = Field(
-        ...,
-        description="Phone number in E.164 format",
-        pattern=r"^\+[1-9]\d{1,14}$",
-    )
-    otp: str = Field(
-        ...,
-        description="6-digit OTP code",
-        min_length=6,
-        max_length=6,
-    )
+    cpf: str
 
 
 # Response schemas
-class AuthStartResponse(BaseModel):
-    """Response after starting authentication."""
-
-    ok: bool = True
-    message: str = "OTP sent successfully"
 
 
 class TokenResponse(BaseModel):
@@ -57,7 +31,7 @@ class UserResponse(BaseModel):
     """User information response."""
 
     id: PyObjectId = Field(..., alias="_id")
-    phone_e164: str
+    cpf: str
     created_at: datetime
     updated_at: datetime
 
@@ -69,9 +43,7 @@ class UserInDB(BaseModel):
     """User document as stored in MongoDB."""
 
     id: PyObjectId | None = Field(None, alias="_id")
-    phone_e164: str
-    otp_code: str | None = None
-    otp_expires_at: datetime | None = None
+    cpf: str
     created_at: datetime
     updated_at: datetime
 

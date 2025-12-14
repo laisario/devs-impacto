@@ -1,16 +1,13 @@
 """
 Auth module router.
-Endpoints for authentication: OTP start, verify, and get current user.
+Endpoints for authentication: login and get current user.
 """
 
 from fastapi import APIRouter, Depends, status
 
-from app.core.errors import UnauthorizedError
 from app.modules.auth.dependencies import CurrentUser, get_auth_service
 from app.modules.auth.schemas import (
-    AuthStartRequest,
-    AuthStartResponse,
-    AuthVerifyRequest,
+    LoginRequest,
     TokenResponse,
     UserResponse,
 )
@@ -20,48 +17,24 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post(
-    "/start",
-    response_model=AuthStartResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Start authentication",
-    description="Send OTP to the provided phone number. In dev mode, OTP is always '123456'.",
-)
-async def auth_start(
-    request: AuthStartRequest,
-    auth_service: AuthService = Depends(get_auth_service),
-) -> AuthStartResponse:
-    """
-    Start authentication flow by sending OTP to phone.
-
-    - Receives phone in E.164 format (e.g., +5511999999999)
-    - Creates or updates user record
-    - "Sends" OTP (mock in development)
-    """
-    await auth_service.start_auth(request.phone_e164)
-    return AuthStartResponse()
-
-
-@router.post(
-    "/verify",
+    "/login",
     response_model=TokenResponse,
     status_code=status.HTTP_200_OK,
-    summary="Verify OTP",
-    description="Verify OTP code and receive JWT access token.",
+    summary="Login",
+    description="Login with CPF. Validates CPF via public API and links to existing user.",
 )
-async def auth_verify(
-    request: AuthVerifyRequest,
+async def login(
+    request: LoginRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
     """
-    Verify OTP and get JWT token.
+    Login with CPF.
 
-    - Validates OTP code (use '123456' in development)
-    - Returns JWT access token for authenticated requests
+    - Validates CPF via public API
+    - Creates or links to existing user
+    - Returns JWT access token
     """
-    token = await auth_service.verify_auth(request.phone_e164, request.otp)
-    if not token:
-        raise UnauthorizedError("Invalid phone number or OTP code")
-
+    token = await auth_service.login(request.cpf)
     return TokenResponse(access_token=token)
 
 
@@ -80,7 +53,7 @@ async def get_me(current_user: CurrentUser) -> UserResponse:
     """
     return UserResponse(
         id=current_user.id,
-        phone_e164=current_user.phone_e164,
+        cpf=current_user.cpf,
         created_at=current_user.created_at,
         updated_at=current_user.updated_at,
     )

@@ -17,12 +17,23 @@ PNAE Reference:
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import logging
+import sys
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.db import close_db, connect_db
 from app.core.errors import register_exception_handlers
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
 from app.modules.ai_formalization.router import router as ai_formalization_router
 from app.modules.auth.router import router as auth_router
 from app.modules.documents.router import router as documents_router

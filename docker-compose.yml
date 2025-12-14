@@ -1,0 +1,73 @@
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: pnae-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      - MONGODB_URI=mongodb+srv://admin:jQs2xrlrLhK6Ure3@hackasdb.bhcckki.mongodb.net/
+      - DATABASE_NAME=pnae_dev
+      - JWT_SECRET=dev-secret-change-in-production
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=1440
+      - STORAGE_PROVIDER=mock
+      - MOCK_STORAGE_BASE_URL=http://backend:8000/mock-storage
+      - LLM_PROVIDER=mock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pnae-network
+
+  # Frontend (Development)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: pnae-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - pnae-network
+
+  # Frontend (Production) - Optional
+  frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: pnae-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - pnae-network
+    profiles:
+      - production
+
+networks:
+  pnae-network:
+    driver: bridge

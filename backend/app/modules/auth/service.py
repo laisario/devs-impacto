@@ -3,12 +3,12 @@ Auth module service.
 Business logic for authentication operations.
 """
 
-from datetime import timedelta
+import re
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.config import settings
-from app.core.security import create_access_token, verify_otp
+from app.core.errors import UnauthorizedError
+from app.core.security import create_access_token
 from app.modules.auth.schemas import UserInDB
 from app.shared.utils import to_object_id, utc_now
 
@@ -20,73 +20,88 @@ class AuthService:
         self.db = db
         self.collection = db.users
 
-    async def start_auth(self, phone_e164: str) -> bool:
-        """
-        Start authentication by creating/updating user with OTP.
+    def _clean_cpf(self, cpf: str) -> str:
+        """Remove formatting from CPF, keeping only digits."""
+        return re.sub(r"[^\d]", "", cpf)
 
-        In mock mode, uses fixed OTP code.
-        In production, would send SMS via external service.
+    def _validate_cpf_format(self, cpf: str) -> bool:
+        """Validate CPF format (11 digits)."""
+        # cpf should already be cleaned, but clean again to be safe
+        cleaned = self._clean_cpf(cpf)
+        return len(cleaned) == 11 and cleaned.isdigit()
+
+    def _validate_cpf_digits(self, cpf: str) -> bool:
+        """
+        Validate CPF using check digit algorithm.
 
         Args:
-            phone_e164: Phone number in E.164 format
+            cpf: CPF to validate (cleaned, 11 digits)
 
         Returns:
-            True if OTP was "sent" successfully
+            True if CPF check digits are valid, False otherwise
         """
-        now = utc_now()
-        otp_expires = now + timedelta(minutes=settings.otp_expire_minutes)
+        # Check for known invalid patterns
+        if len(set(cpf)) == 1:  # All digits are the same (e.g., 11111111111)
+            return False
 
-        # Upsert user with new OTP
+        # Calculate first check digit
+        sum_first = sum(int(cpf[i]) * (10 - i) for i in range(9))
+        remainder_first = sum_first % 11
+        first_digit = 0 if remainder_first < 2 else 11 - remainder_first
+
+        if int(cpf[9]) != first_digit:
+            return False
+
+        # Calculate second check digit
+        sum_second = sum(int(cpf[i]) * (11 - i) for i in range(10))
+        remainder_second = sum_second % 11
+        second_digit = 0 if remainder_second < 2 else 11 - remainder_second
+
+        return int(cpf[10]) == second_digit
+
+    async def login(self, cpf: str) -> str:
+        """
+        Login with CPF. Validates CPF via public API and links to existing user.
+
+        Args:
+            cpf: User CPF (with or without formatting)
+
+        Returns:
+            JWT access token
+
+        Raises:
+            UnauthorizedError: If CPF format is invalid or validation fails
+        """
+        # Clean and validate format
+        cleaned_cpf = self._clean_cpf(cpf)
+        if not self._validate_cpf_format(cleaned_cpf):
+            raise UnauthorizedError("CPF inválido. Por favor, insira um CPF válido.")
+
+        # Validate CPF check digits
+        if not self._validate_cpf_digits(cleaned_cpf):
+            raise UnauthorizedError("CPF inválido. Por favor, insira um CPF válido.")
+
+        now = utc_now()
+
+        # Upsert user (create if doesn't exist, link to existing if exists)
         await self.collection.update_one(
-            {"phone_e164": phone_e164},
+            {"cpf": cleaned_cpf},
             {
                 "$set": {
-                    "otp_code": settings.otp_code_mock,
-                    "otp_expires_at": otp_expires,
                     "updated_at": now,
                 },
                 "$setOnInsert": {
-                    "phone_e164": phone_e164,
+                    "cpf": cleaned_cpf,
                     "created_at": now,
                 },
             },
             upsert=True,
         )
 
-        # In production: send OTP via SMS provider
-        # For now, mock always succeeds
-        return True
-
-    async def verify_auth(self, phone_e164: str, otp: str) -> str | None:
-        """
-        Verify OTP and return JWT token.
-
-        Args:
-            phone_e164: Phone number in E.164 format
-            otp: OTP code provided by user
-
-        Returns:
-            JWT access token if valid, None otherwise
-        """
-        user_doc = await self.collection.find_one({"phone_e164": phone_e164})
+        # Get user document
+        user_doc = await self.collection.find_one({"cpf": cleaned_cpf})
         if not user_doc:
-            return None
-
-        stored_otp = user_doc.get("otp_code")
-        if not verify_otp(otp, stored_otp):
-            return None
-
-        # Clear OTP after successful verification
-        await self.collection.update_one(
-            {"_id": user_doc["_id"]},
-            {
-                "$set": {
-                    "otp_code": None,
-                    "otp_expires_at": None,
-                    "updated_at": utc_now(),
-                }
-            },
-        )
+            raise RuntimeError("Failed to create or find user")
 
         # Generate JWT token
         user_id = str(user_doc["_id"])

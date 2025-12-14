@@ -32,7 +32,7 @@ class OnboardingAnswerCreate(BaseModel):
     """Schema for submitting an onboarding answer."""
 
     question_id: str = Field(..., min_length=1, max_length=50, description="ID da pergunta")
-    answer: Any = Field(..., description="Resposta (pode ser bool, str, ou número)")
+    answer: Any = Field(..., description="Resposta (pode ser bool, str, número, ou list[str] para multi-select)")
 
 
 class OnboardingAnswerResponse(BaseModel):
@@ -73,6 +73,10 @@ class OnboardingQuestion(BaseModel):
     requirement_id: str | None = Field(
         None,
         description="ID do requisito de formalização associado. Se presente, esta pergunta gera um requirement de formalização.",
+    )
+    allow_multiple: bool = Field(
+        default=False,
+        description="Se True, permite seleção múltipla para perguntas do tipo choice. A resposta será um array de strings.",
     )
 
 

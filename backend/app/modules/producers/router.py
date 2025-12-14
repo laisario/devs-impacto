@@ -66,13 +66,19 @@ async def get_producer_profile(
 
     Returns 404 if profile doesn't exist.
     """
-    user_id = str(current_user.id)
-    profile = await service.get_profile_by_user(user_id)
+    try:
+        user_id = str(current_user.id)
+        profile = await service.get_profile_by_user(user_id)
 
-    if not profile:
-        raise NotFoundError("Producer profile")
+        if not profile:
+            raise NotFoundError("Producer profile")
 
-    return ProducerProfileResponse(**profile.model_dump(by_alias=True))
+        return ProducerProfileResponse(**profile.model_dump(by_alias=True))
+    except Exception as e:
+        import traceback
+        print(f"Error in get_producer_profile endpoint: {e}")
+        print(traceback.format_exc())
+        raise
 
 
 @router.get(

@@ -5,6 +5,8 @@ Calculates eligibility for selling to public programs based on onboarding answer
 
 from typing import Any
 
+from app.modules.onboarding.schemas import OnboardingQuestion, QuestionType
+
 
 def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
     """
@@ -33,25 +35,20 @@ def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
         }
     """
     # Extract answers with defaults
-    has_cpf = responses.get("has_cpf", False)
+    # Note: CPF is not checked here as it comes from login/auth
     has_dap_caf = responses.get("has_dap_caf", False)
     has_cnpj = responses.get("has_cnpj", False)
-    producer_type_pref = responses.get("producer_type_preference", "").lower()
-    has_previous_public_sales = responses.get("has_previous_public_sales", False)
+    producer_type_pref = responses.get("producer_type", "").lower()
+    has_previous_public_sales = responses.get("has_previous_sales", False)
     has_bank_account = responses.get("has_bank_account", False)
-    has_organized_documents = responses.get("has_organized_documents", False)
+    has_address_proof = responses.get("has_address_proof", False)
 
     requirements_met: list[str] = []
     requirements_missing: list[str] = []
     recommendations: list[str] = []
 
     # Essential requirements (must have)
-    if has_cpf:
-        requirements_met.append("CPF cadastrado")
-    else:
-        requirements_missing.append("CPF cadastrado")
-        recommendations.append("Obtenha seu CPF na Receita Federal")
-
+    # CPF is assumed to be present (from login), so we don't check it here
     if has_dap_caf:
         requirements_met.append("DAP ou CAF")
     else:
@@ -61,12 +58,12 @@ def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
         )
 
     # Type-specific requirements
-    is_formal = producer_type_pref in ["cooperativa/associação", "cooperativa", "associação"]
+    is_formal = producer_type_pref in ["formal (cnpj)", "formal", "grupo formal (cnpj)"]
     if is_formal:
         if has_cnpj:
-            requirements_met.append("CNPJ (para cooperativa/associação)")
+            requirements_met.append("CNPJ (para grupo formal)")
         else:
-            requirements_missing.append("CNPJ (para cooperativa/associação)")
+            requirements_missing.append("CNPJ (para grupo formal)")
             recommendations.append("Registre CNPJ para sua cooperativa ou associação")
 
     # Important but not blocking
@@ -76,20 +73,21 @@ def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
         requirements_missing.append("Conta bancária")
         recommendations.append("Abra uma conta bancária para receber pagamentos")
 
-    if has_organized_documents:
-        requirements_met.append("Documentos organizados")
+    if has_address_proof:
+        requirements_met.append("Comprovante de endereço")
     else:
-        requirements_missing.append("Documentos organizados")
-        recommendations.append("Organize seus documentos (CPF, DAP, comprovante de endereço)")
+        requirements_missing.append("Comprovante de endereço")
+        recommendations.append("Tenha um comprovante de endereço atualizado")
 
     # Calculate score (0-100)
-    # Essential requirements: 60 points (30 each)
-    # Type-specific: 20 points
-    # Nice to have: 20 points (10 each)
+    # Essential requirements: 50 points (DAP/CAF)
+    # Type-specific: 20 points (CNPJ if formal)
+    # Important: 20 points (bank account, address proof)
+    # Nice to have: 10 points (experience)
     score = 0
 
-    if has_cpf:
-        score += 30
+    # CPF is assumed present (from login) - 30 points
+    score += 30
     if has_dap_caf:
         score += 30
     if is_formal and has_cnpj:
@@ -99,19 +97,19 @@ def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
 
     if has_bank_account:
         score += 10
-    if has_organized_documents:
+    if has_address_proof:
         score += 10
     if has_previous_public_sales:
         score += 5  # Bonus for experience
 
     # Determine eligibility level
-    # Eligible: Has CPF and DAP/CAF (and CNPJ if formal) + at least 60 points
-    # Partially eligible: Has essential docs but missing some requirements (50-79 points)
+    # Eligible: Has DAP/CAF (and CNPJ if formal) + at least 70 points
+    # Partially eligible: Has essential docs but missing some requirements (50-69 points)
     # Not eligible: Missing essential docs (< 50 points)
 
-    essential_ok = has_cpf and has_dap_caf and (not is_formal or has_cnpj)
+    essential_ok = has_dap_caf and (not is_formal or has_cnpj)
 
-    if essential_ok and score >= 80:
+    if essential_ok and score >= 70:
         eligibility_level = "eligible"
         is_eligible = True
     elif essential_ok and score >= 50:
@@ -137,13 +135,63 @@ def calculate_eligibility(responses: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def generate_formalization_tasks(diagnosis: dict[str, Any], responses: dict[str, Any]) -> list[dict[str, Any]]:
+def map_onboarding_answers_to_requirements(
+    answers: dict[str, Any],
+    questions: dict[str, OnboardingQuestion],
+) -> dict[str, bool]:
     """
-    Generate list of formalization tasks based on diagnosis.
+    Mapeia respostas de onboarding para requirements.
+    
+    Args:
+        answers: Dictionary mapping question_id to answer value
+        questions: Dictionary mapping question_id to OnboardingQuestion
+    
+    Returns:
+        Dict mapping requirement_id to bool (True = met, False = missing)
+    """
+    requirements_status: dict[str, bool] = {}
+    
+    for question_id, answer in answers.items():
+        question = questions.get(question_id)
+        if not question or not question.requirement_id:
+            continue
+            
+        requirement_id = question.requirement_id
+        
+        # Lógica de matching baseada no tipo de pergunta
+        if question.question_type == QuestionType.BOOLEAN:
+            requirements_status[requirement_id] = bool(answer)
+        elif question.question_type == QuestionType.CHOICE:
+            # Para choice, considerar como metido se respondeu
+            # Se allow_multiple, answer pode ser uma lista
+            if question.allow_multiple:
+                # Para multi-select, considerar metido se lista não está vazia
+                if isinstance(answer, list):
+                    requirements_status[requirement_id] = len(answer) > 0
+                else:
+                    requirements_status[requirement_id] = bool(answer)
+            else:
+                # Para single choice, considerar como metido se respondeu
+                requirements_status[requirement_id] = bool(answer)
+        elif question.question_type == QuestionType.TEXT:
+            # Para text, considerar como metido se não está vazio
+            requirements_status[requirement_id] = bool(str(answer).strip())
+    
+    return requirements_status
+
+
+def generate_formalization_tasks(
+    diagnosis: dict[str, Any],
+    responses: dict[str, Any],
+    questions: dict[str, OnboardingQuestion] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Generate list of formalization tasks based on diagnosis AND onboarding answers.
 
     Args:
         diagnosis: Result from calculate_eligibility()
         responses: Original responses dictionary
+        questions: Dictionary mapping question_id to OnboardingQuestion (optional)
 
     Returns:
         List of task dictionaries with:
@@ -153,68 +201,107 @@ def generate_formalization_tasks(diagnosis: dict[str, Any], responses: dict[str,
             "description": str,
             "category": str,  # "document", "registration", "preparation"
             "priority": str,  # "high", "medium", "low"
+            "requirement_id": str,  # ID do requirement associado
         }
     """
     tasks: list[dict[str, Any]] = []
-
-    # High priority tasks (blocking requirements)
-    for req in diagnosis["requirements_missing"]:
-        if "CPF" in req:
-            tasks.append(
-                {
-                    "task_id": "obtain_cpf",
-                    "title": "Obter CPF",
-                    "description": "Cadastre-se na Receita Federal para obter seu CPF",
-                    "category": "document",
-                    "priority": "high",
-                }
-            )
-        elif "DAP" in req or "CAF" in req:
-            tasks.append(
-                {
-                    "task_id": "obtain_dap_caf",
-                    "title": "Obter DAP ou CAF",
-                    "description": "Obtenha sua Declaração de Aptidão ao Pronaf na Emater ou órgão similar da sua região",
-                    "category": "document",
-                    "priority": "high",
-                }
-            )
-        elif "CNPJ" in req:
-            tasks.append(
-                {
-                    "task_id": "obtain_cnpj",
-                    "title": "Registrar CNPJ",
-                    "description": "Registre CNPJ para sua cooperativa ou associação na Receita Federal",
-                    "category": "registration",
-                    "priority": "high",
-                }
-            )
-
-    # Medium priority tasks (important but not blocking)
-    if "Conta bancária" in diagnosis["requirements_missing"]:
-        tasks.append(
-            {
+    
+    # Se temos questions, fazer matching direto baseado em requirement_id
+    if questions:
+        requirements_status = map_onboarding_answers_to_requirements(responses, questions)
+        
+        # Mapear requirement_id para tasks
+        requirement_to_task = {
+            "dap_caf": {
+                "task_id": "obtain_dap_caf",
+                "title": "Obter DAP ou CAF",
+                "description": "Obtenha sua Declaração de Aptidão ao Pronaf na Emater ou órgão similar da sua região",
+                "category": "document",
+                "priority": "high",
+            },
+            "cnpj": {
+                "task_id": "obtain_cnpj",
+                "title": "Registrar CNPJ",
+                "description": "Registre CNPJ para sua cooperativa ou associação na Receita Federal",
+                "category": "registration",
+                "priority": "high",
+            },
+            "proof_address": {
+                "task_id": "obtain_address_proof",
+                "title": "Obter comprovante de endereço",
+                "description": "Tenha um comprovante de endereço atualizado",
+                "category": "document",
+                "priority": "medium",
+            },
+            "bank_statement": {
                 "task_id": "open_bank_account",
                 "title": "Abrir conta bancária",
                 "description": "Abra uma conta bancária para receber pagamentos dos programas públicos",
                 "category": "preparation",
                 "priority": "medium",
-            }
-        )
+            },
+        }
+        
+        for requirement_id, is_met in requirements_status.items():
+            if not is_met and requirement_id in requirement_to_task:
+                task_data = requirement_to_task[requirement_id].copy()
+                task_data["requirement_id"] = requirement_id
+                tasks.append(task_data)
+    
+    # Fallback para lógica antiga se não tiver questions (compatibilidade)
+    else:
+        # High priority tasks (blocking requirements)
+        for req in diagnosis["requirements_missing"]:
+            if "DAP" in req or "CAF" in req:
+                tasks.append(
+                    {
+                        "task_id": "obtain_dap_caf",
+                        "title": "Obter DAP ou CAF",
+                        "description": "Obtenha sua Declaração de Aptidão ao Pronaf na Emater ou órgão similar da sua região",
+                        "category": "document",
+                        "priority": "high",
+                        "requirement_id": "dap_caf",
+                    }
+                )
+            elif "CNPJ" in req:
+                tasks.append(
+                    {
+                        "task_id": "obtain_cnpj",
+                        "title": "Registrar CNPJ",
+                        "description": "Registre CNPJ para sua cooperativa ou associação na Receita Federal",
+                        "category": "registration",
+                        "priority": "high",
+                        "requirement_id": "cnpj",
+                    }
+                )
 
-    if "Documentos organizados" in diagnosis["requirements_missing"]:
-        tasks.append(
-            {
-                "task_id": "organize_documents",
-                "title": "Organizar documentos",
-                "description": "Organize e digitalize seus documentos: CPF, DAP/CAF, comprovante de endereço",
-                "category": "preparation",
-                "priority": "medium",
-            }
-        )
+        # Medium priority tasks (important but not blocking)
+        if "Conta bancária" in diagnosis["requirements_missing"]:
+            tasks.append(
+                {
+                    "task_id": "open_bank_account",
+                    "title": "Abrir conta bancária",
+                    "description": "Abra uma conta bancária para receber pagamentos dos programas públicos",
+                    "category": "preparation",
+                    "priority": "medium",
+                    "requirement_id": "bank_statement",
+                }
+            )
+
+        if "Comprovante de endereço" in diagnosis["requirements_missing"]:
+            tasks.append(
+                {
+                    "task_id": "obtain_address_proof",
+                    "title": "Obter comprovante de endereço",
+                    "description": "Tenha um comprovante de endereço atualizado",
+                    "category": "document",
+                    "priority": "medium",
+                    "requirement_id": "proof_address",
+                }
+            )
 
     # Low priority tasks (nice to have)
-    if not responses.get("has_previous_public_sales", False):
+    if not responses.get("has_previous_sales", False):
         tasks.append(
             {
                 "task_id": "learn_public_programs",
@@ -222,6 +309,7 @@ def generate_formalization_tasks(diagnosis: dict[str, Any], responses: dict[str,
                 "description": "Pesquise sobre programas como PNAE e PAA para entender o processo",
                 "category": "preparation",
                 "priority": "low",
+                "requirement_id": None,
             }
         )
 

@@ -1,34 +1,63 @@
 import { useState } from 'react';
-import { ArrowLeft, Leaf, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Leaf, CreditCard } from 'lucide-react';
+import { login as apiLogin } from '../../services/api/auth';
+import { ApiClientError } from '../../services/api/client';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string) => void;
-  onGoToRegister: () => void;
+  onLogin: () => void;
   onBack: () => void;
-  isLoading?: boolean;
 }
 
-export function LoginPage({ onLogin, onGoToRegister, onBack, isLoading = false }: LoginPageProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+export function LoginPage({ onLogin, onBack }: LoginPageProps) {
+  const [cpf, setCpf] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const { login: authLogin } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const formatCpf = (value: string): string => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    // Limit to 11 digits
+    const limited = digits.slice(0, 11);
+    // Format: XXX.XXX.XXX-XX
+    if (limited.length <= 3) {
+      return limited;
+    } else if (limited.length <= 6) {
+      return `${limited.slice(0, 3)}.${limited.slice(3)}`;
+    } else if (limited.length <= 9) {
+      return `${limited.slice(0, 3)}.${limited.slice(3, 6)}.${limited.slice(6)}`;
+    } else {
+      return `${limited.slice(0, 3)}.${limited.slice(3, 6)}.${limited.slice(6, 9)}-${limited.slice(9, 11)}`;
+    }
+  };
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCpf(e.target.value);
+    setCpf(formatted);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    if (!email || !password) {
-      setError('Por favor, preencha todos os campos');
-      return;
+    try {
+      const response = await apiLogin({ cpf });
+      // Update auth context with the token and wait for it to complete
+      await authLogin(response.access_token);
+      // Call the onLogin callback to trigger navigation
+      // onLogin will handle waiting for auth state
+      onLogin();
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message || 'Erro ao fazer login. Tente novamente.');
+      } else {
+        setError('Erro ao fazer login. Tente novamente.');
+      }
+    } finally {
+      setIsLoading(false);
     }
-
-    if (!email.includes('@')) {
-      setError('Por favor, insira um email válido');
-      return;
-    }
-
-    onLogin(email, password);
   };
 
   return (
@@ -53,8 +82,8 @@ export function LoginPage({ onLogin, onGoToRegister, onBack, isLoading = false }
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-100">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Bem-vindo de volta</h1>
-            <p className="text-slate-600 mb-8">Entre na sua conta para continuar</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Bem-vindo</h1>
+            <p className="text-slate-600 mb-8">Digite seu CPF para continuar</p>
 
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -64,76 +93,42 @@ export function LoginPage({ onLogin, onGoToRegister, onBack, isLoading = false }
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-                  Email
+                <label htmlFor="cpf" className="block text-sm font-medium text-slate-700 mb-2">
+                  CPF
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                   <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com"
+                    id="cpf"
+                    type="text"
+                    value={cpf}
+                    onChange={handleCpfChange}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
                     className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     disabled={isLoading}
                   />
                 </div>
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
-                  Senha
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-12 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    disabled={isLoading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Seu CPF será validado automaticamente
+                </p>
               </div>
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || cpf.replace(/\D/g, '').length !== 11}
                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Entrando...</span>
+                    <span>Validando...</span>
                   </>
                 ) : (
                   'Entrar'
                 )}
               </button>
             </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-slate-600">
-                Não tem uma conta?{' '}
-                <button
-                  onClick={onGoToRegister}
-                  className="text-green-600 hover:text-green-700 font-medium"
-                  disabled={isLoading}
-                >
-                  Criar conta
-                </button>
-              </p>
-            </div>
           </div>
         </div>
       </main>

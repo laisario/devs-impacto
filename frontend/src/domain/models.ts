@@ -1,4 +1,16 @@
-export type ViewState = 'landing' | 'login' | 'register' | 'onboarding' | 'dashboard' | 'escalation';
+// Re-export types from API for convenience
+export type {
+  OnboardingStatus,
+  EligibilityLevel,
+  TaskPriority,
+  TaskCategory,
+  DocumentType,
+  ProducerType,
+  QuestionType,
+  ConfidenceLevel,
+} from '../services/api/types';
+
+export type ViewState = 'landing' | 'login' | 'register' | 'onboarding' | 'profile' | 'dashboard' | 'escalation';
 
 export type DocStatus = 'missing' | 'uploaded' | 'ai_reviewed' | 'accepted';
 
@@ -13,31 +25,51 @@ export interface ChecklistStep {
   helpContent?: ChecklistStepHelp;
 }
 
+/**
+ * Frontend checklist item - maps from FormalizationTaskResponse
+ * status: 'todo' = !completed, 'done' = completed
+ */
 export interface ChecklistItem {
   id: string;
   title: string;
   description: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: TaskPriority;
   status: 'todo' | 'doing' | 'done';
   detailedSteps?: ChecklistStep[];
   relatedDocId?: string;
+  taskId?: string; // Backend task_id
+  category?: TaskCategory;
+  requirementId?: string; // For AI guide generation
 }
 
+/**
+ * Frontend document - maps from DocumentResponse
+ */
 export interface Document {
   id: string;
-  type: string;
-  name: string;
+  type: DocumentType;
+  name: string; // original_filename
   status: DocStatus;
   aiNotes?: string;
+  fileUrl?: string;
+  uploadedAt?: string;
 }
 
+/**
+ * Frontend user profile - combines ProducerProfileResponse with additional UI state
+ */
 export interface UserProfile {
+  id?: string;
   name: string;
-  producerType: string;
+  producerType: ProducerType;
   city: string;
-  answers: Record<string, string>;
-  riskFlags: string[];
-  caseType: 'in_natura' | 'needs_human';
+  state?: string;
+  address?: string;
+  answers?: Record<string, string>;
+  riskFlags?: string[];
+  caseType?: 'in_natura' | 'needs_human';
+  eligibilityLevel?: EligibilityLevel;
+  formalizationScore?: number;
 }
 
 export interface ChatMessage {
@@ -47,10 +79,15 @@ export interface ChatMessage {
   audioPlaying?: boolean;
 }
 
+/**
+ * Frontend onboarding question - maps from OnboardingQuestion
+ */
 export interface OnboardingQuestion {
-  key: string;
-  text: string;
-  type: 'text' | 'choice';
+  key: string; // question_id
+  text: string; // question_text
+  type: QuestionType;
   placeholder?: string;
   options?: string[];
+  required?: boolean;
+  requirementId?: string;
 }

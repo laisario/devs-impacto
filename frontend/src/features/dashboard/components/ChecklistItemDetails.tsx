@@ -1,6 +1,10 @@
-import { useMemo, useState } from 'react';
-import { CheckCircle2, ChevronLeft, FileText, Info, Lightbulb, ShieldCheck, Upload } from 'lucide-react';
+import { useMemo, useState, useRef } from 'react';
+import { CheckCircle2, ChevronLeft, FileText, Info, Lightbulb, ShieldCheck, Upload, Sparkles } from 'lucide-react';
 import type { ChecklistItem, Document } from '../../../domain/models';
+import { uploadDocument } from '../../../services/api/documents';
+import { generateFormalizationGuide } from '../../../services/api/ai';
+import { ApiClientError } from '../../../services/api/client';
+import type { FormalizationGuideResponse } from '../../../services/api/types';
 
 export function ChecklistItemDetails({
   item,
@@ -16,11 +20,91 @@ export function ChecklistItemDetails({
   onUploadDoc: (id: string) => void;
 }) {
   const [expandedStepHelp, setExpandedStepHelp] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [aiGuide, setAiGuide] = useState<FormalizationGuideResponse | null>(null);
+  const [isLoadingGuide, setIsLoadingGuide] = useState(false);
+  const [guideError, setGuideError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const relatedDoc = useMemo(
     () => (item.relatedDocId ? documents.find((d) => d.id === item.relatedDocId) : undefined),
     [documents, item.relatedDocId]
   );
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !relatedDoc) return;
+
+    setIsUploading(true);
+    setUploadError('');
+    setUploadProgress(0);
+
+    try {
+      // Map document type - you may need to adjust this mapping based on your needs
+      const docTypeMap: Record<string, string> = {
+        'identidade': 'cpf',
+        'caf': 'dap_caf',
+        'residencia': 'proof_address',
+        'nota_fiscal': 'other',
+      };
+      const docType = docTypeMap[relatedDoc.type] || relatedDoc.type || 'other';
+
+      await uploadDocument(file, docType);
+      
+      // Update document status
+      onUploadDoc(relatedDoc.id);
+      setUploadProgress(100);
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setUploadError(err.message || 'Erro ao fazer upload. Tente novamente.');
+      } else {
+        setUploadError('Erro ao fazer upload. Tente novamente.');
+      }
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadProgress(0), 2000);
+    }
+  };
+
+  const handleUploadClick = () => {
+    if (relatedDoc?.status === 'missing' && fileInputRef.current) {
+      fileInputRef.current.click();
+    } else {
+      onUploadDoc(relatedDoc?.id || '');
+    }
+  };
+
+  const handleGenerateGuide = async () => {
+    if (!item.requirementId) {
+      setGuideError('Este item não possui um guia de formalização disponível.');
+      return;
+    }
+
+    setIsLoadingGuide(true);
+    setGuideError('');
+
+    try {
+      const guide = await generateFormalizationGuide({
+        requirement_id: item.requirementId,
+      });
+      setAiGuide(guide);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setGuideError(err.message || 'Erro ao gerar guia. Tente novamente.');
+      } else {
+        setGuideError('Erro ao gerar guia. Tente novamente.');
+      }
+    } finally {
+      setIsLoadingGuide(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col relative">
@@ -44,6 +128,89 @@ export function ChecklistItemDetails({
               <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full uppercase">Importante</span>
             )}
           </div>
+
+          {item.requirementId && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-bold text-purple-800 mb-2 flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    Guia Personalizado de Formalização
+                  </h3>
+                  <p className="text-sm text-purple-700">
+                    Obtenha um guia passo a passo personalizado gerado por IA para completar este requisito.
+                  </p>
+                </div>
+                <button
+                  onClick={handleGenerateGuide}
+                  disabled={isLoadingGuide}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+                >
+                  {isLoadingGuide ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Gerando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      <span>Gerar Guia</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {guideError && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                  {guideError}
+                </div>
+              )}
+
+              {aiGuide && (
+                <div className="mt-4 space-y-4">
+                  <div className="bg-white p-4 rounded border border-purple-100">
+                    <p className="text-sm text-slate-700">{aiGuide.summary}</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {aiGuide.steps.map((step) => (
+                      <div key={step.step} className="bg-white p-4 rounded border border-purple-100">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 h-6 w-6 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs">
+                            {step.step}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-sm text-slate-800 mb-1">{step.title}</h4>
+                            <p className="text-sm text-slate-600">{step.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-white p-4 rounded border border-purple-100">
+                    <p className="text-xs font-bold text-slate-600 mb-2">Tempo Estimado:</p>
+                    <p className="text-sm text-slate-700">{aiGuide.estimated_time_days} dias</p>
+                  </div>
+
+                  {aiGuide.where_to_go.length > 0 && (
+                    <div className="bg-white p-4 rounded border border-purple-100">
+                      <p className="text-xs font-bold text-slate-600 mb-2">Onde ir:</p>
+                      <ul className="space-y-1">
+                        {aiGuide.where_to_go.map((location, idx) => (
+                          <li key={idx} className="text-sm text-slate-700">• {location}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-slate-500">
+                    Nível de confiança: <span className="font-bold">{aiGuide.confidence_level}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {item.detailedSteps && item.detailedSteps.length > 0 && (
             <div className="mb-10">
@@ -115,15 +282,50 @@ export function ChecklistItemDetails({
                   )}
                 </div>
 
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={isUploading || relatedDoc.status !== 'missing'}
+                />
+
                 <button
-                  onClick={() => onUploadDoc(relatedDoc.id)}
-                  disabled={relatedDoc.status !== 'missing'}
+                  onClick={handleUploadClick}
+                  disabled={relatedDoc.status !== 'missing' || isUploading}
                   className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
-                  <Upload className="h-4 w-4" />
-                  {relatedDoc.status === 'missing' ? 'Fazer Upload Agora' : 'Upload Concluído'}
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      {relatedDoc.status === 'missing' ? 'Fazer Upload Agora' : 'Upload Concluído'}
+                    </>
+                  )}
                 </button>
               </div>
+
+              {uploadProgress > 0 && uploadProgress < 100 && (
+                <div className="mt-3">
+                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-green-500 transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {uploadError && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                  {uploadError}
+                </div>
+              )}
 
               {relatedDoc.aiNotes && (
                 <div className="mt-4 bg-white p-3 rounded border border-green-200 text-xs text-green-800 flex gap-2">

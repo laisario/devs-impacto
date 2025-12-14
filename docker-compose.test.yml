@@ -1,0 +1,76 @@
+# Docker Compose configuration for testing
+# Usage: docker-compose -f docker-compose.test.yml up
+
+services:
+  # Test MongoDB Database
+  mongo-test:
+    image: mongo:7
+    container_name: pnae-mongo-test
+    ports:
+      - "27018:27017"  # Different port to avoid conflicts
+    volumes:
+      - mongo_test_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: pnae_test
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - pnae-test-network
+
+  # Test Backend API
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: pnae-backend-test
+    ports:
+      - "8001:8000"  # Different port
+    environment:
+      - MONGODB_URI=mongodb://mongo-test:27017
+      - DATABASE_NAME=pnae_test
+      - JWT_SECRET=test-secret-key
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=1440
+      - STORAGE_PROVIDER=mock
+      - MOCK_STORAGE_BASE_URL=http://backend-test:8000/mock-storage
+      - LLM_PROVIDER=mock
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pnae-test-network
+
+  # Test Frontend
+  frontend-test:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: pnae-frontend-test
+    ports:
+      - "5174:5173"  # Different port
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8001
+    depends_on:
+      backend-test:
+        condition: service_healthy
+    networks:
+      - pnae-test-network
+
+volumes:
+  mongo_test_data:
+
+networks:
+  pnae-test-network:
+    driver: bridge

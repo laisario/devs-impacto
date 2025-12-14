@@ -69,14 +69,40 @@ class ProducerService:
         """
         try:
             user_oid = to_object_id(user_id)
-        except ValueError:
+        except ValueError as e:
+            import traceback
+            print(f"Error converting user_id to ObjectId: {e}")
+            print(traceback.format_exc())
             return None
 
-        doc = await self.collection.find_one({"user_id": user_oid})
-        if not doc:
-            return None
+        try:
+            doc = await self.collection.find_one({"user_id": user_oid})
+            if not doc:
+                return None
 
-        return ProducerProfileInDB(**doc)
+            # Validate that the document has required fields before creating the model
+            # If it's a minimal profile created by onboarding, it might not have all fields
+            required_fields = {"producer_type", "name", "address", "city", "state", "dap_caf_number"}
+            if not required_fields.issubset(set(doc.keys())):
+                # This is a minimal profile created by onboarding, not a complete profile
+                # Return None so the user can create a proper profile
+                print(f"Profile exists but is missing required fields: {required_fields - set(doc.keys())}")
+                return None
+            
+            try:
+                return ProducerProfileInDB(**doc)
+            except Exception as e:
+                import traceback
+                print(f"Error creating ProducerProfileInDB from document: {e}")
+                print(f"Document keys: {list(doc.keys())}")
+                print(f"Document: {doc}")
+                print(traceback.format_exc())
+                raise
+        except Exception as e:
+            import traceback
+            print(f"Error in get_profile_by_user: {e}")
+            print(traceback.format_exc())
+            raise
 
     async def get_profile_by_id(self, profile_id: str) -> ProducerProfileInDB | None:
         """

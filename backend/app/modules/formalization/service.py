@@ -126,8 +126,20 @@ class FormalizationService:
         user_oid = to_object_id(user_id)
         now = utc_now()
 
-        # Generate tasks from diagnosis
-        new_tasks = generate_formalization_tasks(diagnosis, responses)
+        # Get onboarding questions for dynamic matching
+        questions_dict: dict[str, Any] = {}
+        try:
+            questions_list = await self.onboarding_service._get_questions_list()
+            for q in questions_list:
+                questions_dict[q.question_id] = q
+        except Exception:
+            # If questions not available, pass None (fallback to old logic)
+            questions_dict = {}
+
+        # Generate tasks from diagnosis with questions for dynamic matching
+        new_tasks = generate_formalization_tasks(
+            diagnosis, responses, questions_dict if questions_dict else None
+        )
 
         # Get existing tasks to preserve completion status
         existing_tasks_map: dict[str, FormalizationTaskInDB] = {}
@@ -152,6 +164,7 @@ class FormalizationService:
                                 "description": task_data["description"],
                                 "category": task_data["category"],
                                 "priority": task_data["priority"],
+                                "requirement_id": task_data.get("requirement_id"),
                             }
                         },
                     )

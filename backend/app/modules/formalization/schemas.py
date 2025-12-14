@@ -66,6 +66,9 @@ class FormalizationTaskResponse(BaseModel):
     completed: bool = Field(default=False, description="Se a tarefa foi concluída")
     completed_at: datetime | None = Field(None, description="Data de conclusão")
     created_at: datetime
+    requirement_id: str | None = Field(
+        None, description="ID do requirement de onboarding associado a esta tarefa"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -83,6 +86,9 @@ class FormalizationTaskInDB(BaseModel):
     completed: bool = False
     completed_at: datetime | None = None
     created_at: datetime
+    requirement_id: str | None = Field(
+        None, description="ID do requirement de onboarding associado a esta tarefa"
+    )
 
     model_config = {"populate_by_name": True}
 

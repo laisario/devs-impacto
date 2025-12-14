@@ -13,6 +13,7 @@ dependencies = [
     "python-multipart>=0.0.12",
     "reportlab>=4.2.0",
     "openai>=1.0.0",
+    "httpx>=0.28.0",
 ]
 
 [project.optional-dependencies]
@@ -55,6 +56,12 @@ ignore_missing_imports = true
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end tests",
+]
+addopts = "-v --tb=short"
 
 
 

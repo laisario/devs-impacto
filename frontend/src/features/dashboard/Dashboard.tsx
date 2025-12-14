@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,6 +12,11 @@ import {
 import type { ChecklistItem, Document, UserProfile } from '../../domain/models';
 import { ChatWidget } from '../chat/ChatWidget';
 import { ChecklistItemDetails } from './components/ChecklistItemDetails';
+import { getFormalizationTasks, getFormalizationStatus } from '../../services/api/formalization';
+import { getDocuments } from '../../services/api/documents';
+import { getProducerProfile } from '../../services/api/producer';
+import { ApiClientError } from '../../services/api/client';
+import type { FormalizationTaskResponse, DocumentResponse } from '../../services/api/types';
 
 export function Dashboard({
   user,
@@ -22,7 +27,7 @@ export function Dashboard({
   onEscalate,
   onLogout,
 }: {
-  user: UserProfile;
+  user: UserProfile | null;
   checklist: ChecklistItem[];
   documents: Document[];
   setChecklist: React.Dispatch<React.SetStateAction<ChecklistItem[]>>;
@@ -32,36 +37,119 @@ export function Dashboard({
 }) {
   const [activeTab, setActiveTab] = useState<'checklist' | 'docs'>('checklist');
   const [selectedItem, setSelectedItem] = useState<ChecklistItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [formalizationStatus, setFormalizationStatus] = useState<{ isEligible: boolean; score: number; eligibilityLevel: string } | null>(null);
+
+  // Map backend task to frontend checklist item
+  const mapTaskToChecklistItem = (task: FormalizationTaskResponse): ChecklistItem => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    priority: task.priority,
+    status: task.completed ? 'done' : 'todo',
+    taskId: task.task_id,
+    category: task.category,
+    requirementId: task.requirement_id || undefined,
+  });
+
+  // Map backend document to frontend document
+  const mapDocumentResponse = (doc: DocumentResponse): Document => ({
+    id: doc.id,
+    type: doc.doc_type,
+    name: doc.original_filename,
+    status: 'uploaded', // Documents from API are already uploaded
+    fileUrl: doc.file_url,
+    uploadedAt: doc.uploaded_at,
+  });
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        // Load tasks
+        const tasks = await getFormalizationTasks();
+        const mappedTasks = tasks.map(mapTaskToChecklistItem);
+        setChecklist(mappedTasks);
+
+        // Load documents
+        const docsResponse = await getDocuments();
+        const mappedDocs = docsResponse.items.map(mapDocumentResponse);
+        setDocuments(mappedDocs);
+
+        // Load formalization status
+        try {
+          const status = await getFormalizationStatus();
+          setFormalizationStatus({
+            isEligible: status.is_eligible,
+            score: status.score,
+            eligibilityLevel: status.eligibility_level,
+          });
+        } catch (err) {
+          // Status might not be available yet
+          console.warn('Could not load formalization status:', err);
+        }
+
+        // Load producer profile if user is not set
+        if (!user) {
+          try {
+            const profile = await getProducerProfile();
+            if (profile) {
+              // Profile will be handled by parent component
+            }
+          } catch (err) {
+            // Profile might not exist yet
+            console.warn('Could not load producer profile:', err);
+          }
+        }
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          setError(err.message || 'Erro ao carregar dados. Tente novamente.');
+        } else {
+          setError('Erro ao carregar dados. Tente novamente.');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const toggleItem = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setChecklist((prev) =>
       prev.map((item) => (item.id === id ? { ...item, status: item.status === 'done' ? 'todo' : 'done' } : item))
     );
+    // TODO: Update task completion status in backend when endpoint is available
   };
 
   const uploadDoc = (id: string) => {
+    // This will be handled by ChecklistItemDetails with real upload
     setDocuments((prev) => prev.map((doc) => (doc.id === id ? { ...doc, status: 'uploaded' } : doc)));
-
-    window.setTimeout(() => {
-      setDocuments((prev) =>
-        prev.map((doc) =>
-          doc.id === id
-            ? { ...doc, status: 'ai_reviewed', aiNotes: 'Documento parece legível. Data de validade OK.' }
-            : doc
-        )
-      );
-    }, 1500);
   };
 
   const progress = checklist.length
     ? Math.round((checklist.filter((i) => i.status === 'done').length / checklist.length) * 100)
     : 0;
-  const isRisky = user.caseType === 'needs_human';
+  const isRisky = user?.caseType === 'needs_human' || formalizationStatus?.eligibilityLevel === 'not_eligible';
 
   const openDetails = (item: ChecklistItem) => {
     setSelectedItem(item);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedItem) {
     return (
@@ -76,7 +164,7 @@ export function Dashboard({
             setSelectedItem(null);
           }}
         />
-        <ChatWidget userName={user.name} />
+        <ChatWidget userName={user?.name || 'Usuário'} />
       </>
     );
   }
@@ -93,8 +181,8 @@ export function Dashboard({
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-800">{user.name}</p>
-              <p className="text-xs text-slate-500">{user.city}</p>
+              <p className="text-sm font-bold text-slate-800">{user?.name || 'Usuário'}</p>
+              <p className="text-xs text-slate-500">{user?.city || ''}</p>
             </div>
             <div className="h-8 w-8 bg-slate-200 rounded-full flex items-center justify-center">
               <User className="h-5 w-5 text-slate-500" />
@@ -107,14 +195,58 @@ export function Dashboard({
       </header>
 
       <div className="max-w-5xl mx-auto p-4 md:p-8 pb-24">
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+            {error}
+          </div>
+        )}
+
+        {formalizationStatus && (
+          <div className={`mb-6 p-4 rounded-xl border ${
+            formalizationStatus.isEligible
+              ? 'bg-green-50 border-green-200'
+              : formalizationStatus.eligibilityLevel === 'partially_eligible'
+              ? 'bg-yellow-50 border-yellow-200'
+              : 'bg-orange-50 border-orange-200'
+          }`}>
+            <div className="flex items-start gap-4">
+              {formalizationStatus.isEligible ? (
+                <CheckCircle2 className="text-green-600 h-6 w-6 shrink-0 mt-1" />
+              ) : (
+                <AlertTriangle className="text-orange-600 h-6 w-6 shrink-0 mt-1" />
+              )}
+              <div>
+                <h3 className={`font-bold ${
+                  formalizationStatus.isEligible ? 'text-green-800' : 'text-orange-800'
+                }`}>
+                  {formalizationStatus.isEligible
+                    ? 'Você está elegível para vender em programas públicos!'
+                    : `Elegibilidade: ${formalizationStatus.eligibilityLevel === 'partially_eligible' ? 'Parcial' : 'Não elegível'}`}
+                </h3>
+                <p className={`text-sm mt-1 ${
+                  formalizationStatus.isEligible ? 'text-green-700' : 'text-orange-700'
+                }`}>
+                  Pontuação: {formalizationStatus.score}/100
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isRisky && (
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6 flex items-start gap-4">
             <AlertTriangle className="text-orange-600 h-6 w-6 shrink-0 mt-1" />
             <div>
               <h3 className="font-bold text-orange-800">Atenção: Seu caso possui complexidade</h3>
               <p className="text-sm text-orange-700 mt-1">
-                Detectamos <strong>{user.riskFlags.join(', ')}</strong>. Isso geralmente exige RT (Responsável
-                Técnico) ou aprovação sanitária específica.
+                {user?.riskFlags && user.riskFlags.length > 0 ? (
+                  <>
+                    Detectamos <strong>{user.riskFlags.join(', ')}</strong>. Isso geralmente exige RT (Responsável
+                    Técnico) ou aprovação sanitária específica.
+                  </>
+                ) : (
+                  'Seu caso pode exigir atenção especial. Consulte um especialista.'
+                )}
               </p>
               <button
                 onClick={onEscalate}
@@ -254,7 +386,7 @@ export function Dashboard({
         )}
       </div>
 
-      <ChatWidget userName={user.name} />
+      <ChatWidget userName={user?.name || 'Usuário'} />
     </div>
   );
 }
