@@ -10,6 +10,16 @@ export type {
   ConfidenceLevel,
 } from '../services/api/types';
 
+// Import types for use in interfaces
+import type {
+  TaskPriority,
+  TaskCategory,
+  DocumentType,
+  ProducerType,
+  EligibilityLevel,
+  QuestionType,
+} from '../services/api/types';
+
 export type ViewState = 'landing' | 'login' | 'register' | 'onboarding' | 'profile' | 'dashboard' | 'escalation';
 
 export type DocStatus = 'missing' | 'uploaded' | 'ai_reviewed' | 'accepted';

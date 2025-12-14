@@ -2,9 +2,17 @@
  * Test setup file for Vitest
  */
 
+// @ts-expect-error - vitest types may not be available in all environments
 import { expect, afterEach, vi } from 'vitest';
+// @ts-expect-error - testing-library types may not be available
 import { cleanup } from '@testing-library/react';
+// @ts-expect-error - jest-dom types may not be available
 import * as matchers from '@testing-library/jest-dom/matchers';
+
+// Declare global for Node.js environment
+declare const global: typeof globalThis & {
+  localStorage?: Storage;
+};
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
@@ -25,7 +33,7 @@ afterEach(() => {
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query) => ({
+  value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -70,4 +78,4 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // Also set on global for Node.js environment
-global.localStorage = localStorageMock as any;
+(globalThis as any).localStorage = localStorageMock;

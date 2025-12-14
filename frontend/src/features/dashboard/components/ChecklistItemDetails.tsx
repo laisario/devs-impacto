@@ -1,10 +1,10 @@
 import { useMemo, useState, useRef } from 'react';
 import { CheckCircle2, ChevronLeft, FileText, Info, Lightbulb, ShieldCheck, Upload, Sparkles } from 'lucide-react';
 import type { ChecklistItem, Document } from '../../../domain/models';
+import type { DocumentType, FormalizationGuideResponse } from '../../../services/api/types';
 import { uploadDocument } from '../../../services/api/documents';
 import { generateFormalizationGuide } from '../../../services/api/ai';
 import { ApiClientError } from '../../../services/api/client';
-import type { FormalizationGuideResponse } from '../../../services/api/types';
 
 export function ChecklistItemDetails({
   item,
@@ -42,17 +42,11 @@ export function ChecklistItemDetails({
     setUploadProgress(0);
 
     try {
-      let docType = 'other';
+      let docType: DocumentType = 'other';
       
       if (relatedDoc) {
-        // Map document type - you may need to adjust this mapping based on your needs
-        const docTypeMap: Record<string, string> = {
-          'identidade': 'cpf',
-          'caf': 'dap_caf',
-          'residencia': 'proof_address',
-          'nota_fiscal': 'other',
-        };
-        docType = docTypeMap[relatedDoc.type] || relatedDoc.type || 'other';
+        // Use the document type directly if it's valid, otherwise default to 'other'
+        docType = relatedDoc.type || 'other';
       } else if (item.needUpload) {
         // For tasks that need upload but don't have a related doc, use 'other'
         docType = 'other';

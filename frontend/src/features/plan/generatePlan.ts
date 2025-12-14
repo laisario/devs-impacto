@@ -1,4 +1,4 @@
-import type { ChecklistItem, Document, UserProfile } from '../../domain/models';
+import type { ChecklistItem, Document, UserProfile, ProducerType } from '../../domain/models';
 
 export interface PlanResult {
   user: UserProfile;
@@ -20,15 +20,15 @@ export function generatePlan(answers: Record<string, string>): PlanResult {
   }
 
   const documents: Document[] = [
-    { id: 'd1', type: 'identidade', name: 'RG/CPF', status: 'missing' },
+    { id: 'd1', type: 'cpf', name: 'RG/CPF', status: 'missing' },
     {
       id: 'd2',
-      type: 'caf',
+      type: 'dap_caf',
       name: 'CAF/DAP',
       status: answers.documentacao_base === 'Tenho ativa' ? 'uploaded' : 'missing',
     },
-    { id: 'd3', type: 'residencia', name: 'Comprovante Residência', status: 'missing' },
-    { id: 'd4', type: 'nota_fiscal', name: 'Nota Fiscal de Produtor (Exemplo)', status: 'missing' },
+    { id: 'd3', type: 'proof_address', name: 'Comprovante Residência', status: 'missing' },
+    { id: 'd4', type: 'other', name: 'Nota Fiscal de Produtor (Exemplo)', status: 'missing' },
   ];
 
   const checklist: ChecklistItem[] = [
@@ -161,9 +161,16 @@ export function generatePlan(answers: Record<string, string>): PlanResult {
     });
   }
 
+  // Map answer to ProducerType
+  const getProducerType = (tipo: string | undefined): ProducerType => {
+    if (tipo?.includes('Individual') || tipo?.includes('Pessoa Física')) return 'individual';
+    if (tipo?.includes('Cooperativa') || tipo?.includes('Associação')) return 'formal';
+    return 'individual'; // Default
+  };
+
   const user: UserProfile = {
     name: answers.name ?? '',
-    producerType: answers.tipo_alimento ?? '',
+    producerType: getProducerType(answers.tipo_alimento),
     city: answers.municipio ?? '',
     answers,
     riskFlags,

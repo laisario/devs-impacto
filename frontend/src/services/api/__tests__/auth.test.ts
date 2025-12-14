@@ -2,6 +2,7 @@
  * Tests for auth API service
  */
 
+// @ts-expect-error - vitest types may not be available
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { login, getCurrentUser, logout } from '../auth';
 import { setAuthToken, removeAuthToken, getAuthToken } from '../client';

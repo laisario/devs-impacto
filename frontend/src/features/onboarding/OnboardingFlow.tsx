@@ -278,7 +278,7 @@ export function OnboardingFlow({
               )}
             </button>
           </form>
-        ) : (
+        ) : currentQuestion ? (
           <>
             <div className="mb-8 animate-fade-in">
               <div className="flex items-center gap-3 mb-4">
@@ -417,7 +417,7 @@ export function OnboardingFlow({
               )}
             </div>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
  * Tests for documents API service
  */
 
+// @ts-expect-error - vitest types may not be available
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   presignDocument,
@@ -23,7 +24,7 @@ vi.mock('../../api/client', async () => {
 });
 
 // Mock fetch for upload
-global.fetch = vi.fn();
+(globalThis as any).fetch = vi.fn();
 
 describe('Documents API Service', () => {
   beforeEach(() => {
@@ -163,7 +164,7 @@ describe('Documents API Service', () => {
       vi.mocked(client.apiRequest)
         .mockResolvedValueOnce(mockPresignResponse)
         .mockResolvedValueOnce(mockCreateResponse);
-      vi.mocked(global.fetch).mockResolvedValue({
+      vi.mocked((globalThis as any).fetch).mockResolvedValue({
         ok: true,
         status: 200,
       } as Response);
@@ -175,7 +176,7 @@ describe('Documents API Service', () => {
       const result = await uploadDocument(file, 'dap_caf');
 
       expect(client.apiRequest).toHaveBeenCalledTimes(2);
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect((globalThis as any).fetch).toHaveBeenCalledWith(
         mockPresignResponse.upload_url,
         expect.objectContaining({
           method: 'PUT',

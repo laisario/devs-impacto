@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  const login = async (token: string) => {
+  const login = async (_token: string) => {
     // Token is already stored by login function
     setIsLoading(true);
     await loadUser();

@@ -2,6 +2,7 @@
  * Tests for onboarding API service
  */
 
+// @ts-expect-error - vitest types may not be available
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   submitOnboardingAnswer,

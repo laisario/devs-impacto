@@ -28,8 +28,7 @@ export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 // Auth types
 export interface LoginRequest {
-  email: string;
-  password: string;
+  cpf: string;
 }
 
 export interface TokenResponse {

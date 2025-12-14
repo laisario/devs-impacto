@@ -9,7 +9,7 @@ import {
   Upload,
   User,
 } from 'lucide-react';
-import type { ChecklistItem, Document, UserProfile } from '../../domain/models';
+import type { ChecklistItem, Document, UserProfile, DocumentType } from '../../domain/models';
 import { ChatWidget } from '../chat/ChatWidget';
 import { ChecklistItemDetails } from './components/ChecklistItemDetails';
 import { getFormalizationTasks, getFormalizationStatus } from '../../services/api/formalization';
@@ -55,7 +55,7 @@ export function Dashboard({
   // Map backend document to frontend document
   const mapDocumentResponse = (doc: DocumentResponse): Document => ({
     id: doc.id,
-    type: doc.doc_type,
+    type: doc.doc_type as DocumentType, // Backend returns DocumentType, cast is safe
     name: doc.original_filename,
     status: 'uploaded', // Documents from API are already uploaded
     fileUrl: doc.file_url,
@@ -128,24 +128,19 @@ export function Dashboard({
       e.preventDefault();
     }
     
-    console.log('Toggling item with id:', id);
-    console.log('Current checklist:', checklist.map(item => ({ id: item.id, status: item.status })));
-    
     setChecklist((prev) => {
-      const updated = prev.map((item) => {
+      return prev.map((item) => {
         // Strict comparison - only update if IDs match exactly
         if (item.id === id) {
-          console.log('Updating item:', item.id, 'from', item.status, 'to', item.status === 'done' ? 'todo' : 'done');
-          return { ...item, status: item.status === 'done' ? 'todo' : 'done' };
+          const newStatus: 'todo' | 'doing' | 'done' = item.status === 'done' ? 'todo' : 'done';
+          return { ...item, status: newStatus };
         }
         // Return item unchanged
         return item;
       });
-      console.log('Updated checklist:', updated.map(item => ({ id: item.id, status: item.status })));
-      return updated;
     });
     // TODO: Update task completion status in backend when endpoint is available
-  }, [checklist]);
+  }, []);
 
   const uploadDoc = (id: string) => {
     // This will be handled by ChecklistItemDetails with real upload
