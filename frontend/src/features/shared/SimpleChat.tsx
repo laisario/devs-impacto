@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { sendChatMessage } from '../../services/api/chat';
 import { ApiClientError } from '../../services/api/client';
@@ -7,7 +7,7 @@ interface SimpleChatProps {
   userName?: string;
 }
 
-export function SimpleChat({ userName = 'Usuário' }: SimpleChatProps) {
+export function SimpleChat({ userName: _userName = 'Usuário' }: SimpleChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [input, setInput] = useState('');
@@ -33,7 +33,7 @@ export function SimpleChat({ userName = 'Usuário' }: SimpleChatProps) {
 
       setMessages([
         ...newMessages,
-        { role: 'assistant' as const, content: response.message },
+        { role: 'assistant' as const, content: response.content },
       ]);
     } catch (err) {
       if (err instanceof ApiClientError) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Lightbulb, Loader2, CheckCircle, ArrowRight } from 'lucide-react';
 import { ScreenWrapper } from '../shared/ScreenWrapper';
 import type { ChecklistItem } from '../../domain/models';

@@ -8,6 +8,12 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 const UPLOAD_PROGRESS_RESET_DELAY_MS = 2000; // Delay before hiding progress bar after upload completes
 
+const ERROR_MESSAGES = {
+  FILE_TOO_LARGE: 'Arquivo muito grande. Tamanho máximo: 10MB',
+  INVALID_FILE_TYPE: 'Tipo de arquivo inválido. Use PDF, JPG ou PNG',
+  UPLOAD_ERROR: 'Erro ao fazer upload. Tente novamente.',
+};
+
 const validateFile = (file: File): string | null => {
   if (file.size > MAX_FILE_SIZE) {
     return ERROR_MESSAGES.FILE_TOO_LARGE;
@@ -22,7 +28,7 @@ const isValidDocumentType = (type: string): type is DocumentType => {
   return ['dap_caf', 'cpf', 'cnpj', 'proof_address', 'bank_statement', 'statute', 'minutes', 'other'].includes(type);
 };
 
-const determineDocumentType = (relatedDoc?: Document, needUpload?: boolean): DocumentType => {
+const determineDocumentType = (relatedDoc?: Document): DocumentType => {
   if (relatedDoc?.type && isValidDocumentType(relatedDoc.type)) {
     return relatedDoc.type;
   }
@@ -38,7 +44,7 @@ interface UseFileUploadOptions {
 
 export function useFileUpload({
   relatedDoc,
-  needUpload,
+  needUpload: _needUpload,
   onSuccess,
   onUploadDoc,
 }: UseFileUploadOptions = {}) {
@@ -63,7 +69,7 @@ export function useFileUpload({
     setUploadProgress(0);
 
     try {
-      const docType = determineDocumentType(relatedDoc, needUpload);
+      const docType = determineDocumentType(relatedDoc);
       const doc = await uploadDocument(file, docType);
       
       setUploadProgress(100);

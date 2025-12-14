@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sparkles, Loader2, CheckCircle2, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, CheckCircle2, FileText } from 'lucide-react';
 import { ScreenWrapper } from '../shared/ScreenWrapper';
 import { generateSalesProjectDraft } from '../../services/api/sales-project';
 import { ApiClientError } from '../../services/api/client';

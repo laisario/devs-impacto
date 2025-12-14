@@ -1,4 +1,3 @@
-import React from 'react';
 import { CheckCircle2, TrendingUp, AlertCircle, FileText, Clock, ArrowRight } from 'lucide-react';
 import { ScreenWrapper } from '../shared/ScreenWrapper';
 import type { ChecklistItem } from '../../domain/models';
@@ -13,7 +12,7 @@ interface TaskListScreenProps {
   eligibilityLevel?: 'eligible' | 'partially_eligible' | 'not_eligible';
 }
 
-export function TaskListScreen({ tasks, onStartFirstTask, onViewResult, onTaskClick, onBack, score = 0, eligibilityLevel = 'not_eligible' }: TaskListScreenProps) {
+export function TaskListScreen({ tasks, onStartFirstTask, onViewResult, onTaskClick, onBack, score = 0 }: TaskListScreenProps) {
   const completedCount = tasks.filter((t) => t.status === 'done').length;
   const totalCount = tasks.length;
   const pendingTasks = tasks.filter((t) => t.status !== 'done');
@@ -104,7 +103,7 @@ export function TaskListScreen({ tasks, onStartFirstTask, onViewResult, onTaskCl
             Tarefas para fazer
           </h3>
           <div className="space-y-3">
-            {pendingTasks.map((task, index) => {
+            {pendingTasks.map((task) => {
               const taskNumber = tasks.findIndex((t) => t.id === task.id) + 1;
               return (
                 <div

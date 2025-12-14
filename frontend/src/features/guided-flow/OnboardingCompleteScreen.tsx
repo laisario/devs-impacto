@@ -1,4 +1,3 @@
-import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { ScreenWrapper } from '../shared/ScreenWrapper';
 

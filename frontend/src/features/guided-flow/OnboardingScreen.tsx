@@ -185,7 +185,9 @@ export function OnboardingScreen({ onComplete, onBack }: OnboardingScreenProps) 
         }}
         showBack={!!onBack}
         onBack={onBack}
-      />
+      >
+        <div></div>
+      </ScreenWrapper>
     );
   }
 
@@ -198,7 +200,14 @@ export function OnboardingScreen({ onComplete, onBack }: OnboardingScreenProps) 
         title="Qual é o número da sua DAP/CAF?"
         primaryAction={{
           label: isSubmitting ? 'Salvando...' : 'Continuar',
-          onClick: handleDapCafSubmit,
+          onClick: () => {
+            const value = dapCafInputRef.current?.value?.trim();
+            if (!value) {
+              setError('Por favor, insira o número da DAP/CAF');
+              return;
+            }
+            handleDapCafSubmit({ preventDefault: () => {} } as React.FormEvent);
+          },
           disabled: isSubmitting,
         }}
         showBack={!!onBack}

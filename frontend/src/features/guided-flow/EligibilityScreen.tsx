@@ -1,4 +1,3 @@
-import React from 'react';
 import { CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { ScreenWrapper } from '../shared/ScreenWrapper';
 import type { EligibilityLevel } from '../../services/api/types';
@@ -16,7 +15,7 @@ export function EligibilityScreen({
   isEligible,
   eligibilityLevel,
   score,
-  onCreateProject,
+  onCreateProject: _onCreateProject,
   onViewTasks,
   onBack,
 }: EligibilityScreenProps) {
