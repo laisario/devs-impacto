@@ -3,6 +3,8 @@ Documents module router.
 Endpoints for document upload and management (Envelope 01).
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, Query, status
 
 from app.core.db import get_database
@@ -11,6 +13,7 @@ from app.modules.auth.dependencies import CurrentUser
 from app.modules.documents.schemas import (
     DocumentCreate,
     DocumentResponse,
+    DocumentType,
     PresignRequest,
     PresignResponse,
 )
@@ -74,10 +77,73 @@ async def create_document(
 
     Called after client has uploaded the file using the presigned URL.
     Stores the document reference in the database.
+    Triggers AI validation in background.
     """
     user_id = str(current_user.id)
     document = await service.create_document(user_id, data)
+
+    # Trigger AI validation in background (non-blocking)
+    asyncio.create_task(
+        validate_document_async(user_id, str(document.id), data.doc_type, service)
+    )
+
     return DocumentResponse(**document.model_dump(by_alias=True))
+
+
+async def validate_document_async(
+    user_id: str, doc_id: str, doc_type: DocumentType, service: DocumentsService
+) -> None:
+    """
+    Validate document with AI in background.
+
+    Args:
+        user_id: User ID
+        doc_id: Document ID
+        doc_type: Document type
+        service: DocumentsService instance
+    """
+    try:
+        # Get user profile for context
+        from app.modules.producers.service import ProducerService
+
+        producer_service = ProducerService(get_database())
+        try:
+            profile = await producer_service.get_profile_by_user(user_id)
+        except Exception:
+            profile = None
+
+        # Get document
+        doc = await service.get_document_by_id(doc_id, user_id)
+        if not doc:
+            return
+
+        # Validate with AI
+        validation = await service.validate_document_with_ai(doc.file_url, doc_type, profile)
+
+        # Build notes
+        notes = validation.get("notes", "")
+        if validation.get("issues"):
+            issues_text = ", ".join(validation.get("issues", []))
+            if notes:
+                notes += f"\n\nProblemas encontrados: {issues_text}"
+            else:
+                notes = f"Problemas encontrados: {issues_text}"
+
+        # Update document with AI validation results
+        await service.update_document(
+            doc_id,
+            {
+                "ai_notes": notes,
+                "ai_validated": True,
+                "ai_confidence": validation.get("confidence", "low"),
+            },
+        )
+    except Exception as e:
+        # Log error but don't fail - validation is optional
+        import traceback
+
+        print(f"Error in background document validation: {e}")
+        print(traceback.format_exc())
 
 
 @router.get(

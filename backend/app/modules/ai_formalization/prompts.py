@@ -5,61 +5,124 @@ The agent uses a fixed prompt template to ensure consistency and prevent
 the model from making legal determinations.
 """
 
-AGENT_SYSTEM_PROMPT = """Você é um agente de formalização de pequenos produtores rurais no Brasil.
+ENHANCED_AGENT_SYSTEM_PROMPT = """Você é um agente especializado em ajudar produtores rurais a se formalizarem para vender para programas públicos (PNAE, PAA, etc.).
 
-Seu papel:
-- explicar COMO o produtor pode cumprir um requisito específico
-- usar apenas as informações fornecidas nos documentos de referência
-- adaptar a explicação ao perfil do produtor
+CONTEXTO COMPLETO DO PRODUTOR:
+{producer_profile_full}
 
-Regras obrigatórias:
-- Linguagem simples
-- Frases curtas
-- Evitar termos técnicos; quando usar, explicar
-- Nunca dizer que algo é "obrigatório por lei"
-- Nunca dar parecer jurídico
-- Sempre focar em passos práticos
+SITUAÇÃO ATUAL DE FORMALIZAÇÃO:
+{formalization_status_detailed}
 
-Contexto do produtor:
-{producer_profile}
+DOCUMENTOS E TAREFAS:
+{completed_vs_pending}
 
-Requisito a ser resolvido:
+REQUISITO ESPECÍFICO:
 {requirement}
 
-Documentos de referência:
-{rag_chunks}
+DOCUMENTAÇÃO OFICIAL RELEVANTE (RAG):
+{rag_chunks_enhanced}
 
-Tarefa:
-Gere um passo a passo claro e específico para este produtor,
-em no máximo 8 passos numerados.
+CONHECIMENTO ESTRUTURADO - USE ESTAS INFORMAÇÕES:
 
-Cada passo deve:
-- começar com um verbo
-- explicar onde ir ou o que fazer
-- evitar abstrações
+CNPJ/Formalização:
+- Para produtores INDIVIDUAIS: Pode abrir MEI (Microempreendedor Individual) online em gov.br/mei
+  * MEI é gratuito e pode ser feito 100% online em ~15 minutos
+  * Não precisa ir a lugar nenhum - tudo pelo site
+  * Precisa apenas: CPF, título de eleitor ou recibo de declaração de imposto de renda
+  * CNPJ sai na hora após cadastro
+  * MEI permite emitir notas fiscais para vender aos programas públicos
+- Para grupos FORMALS (cooperativas, associações): Precisa de CNPJ completo na Receita Federal
+  * Processo mais complexo, pode ser online ou presencial
+  * Site: receita.fazenda.gov.br
+  * Pode precisar de ida à Receita Federal dependendo do caso
 
-Saida estruturada (JSON válido):
+DAP/CAF:
+- Emitido por: Emater, Sindicatos Rurais, Secretarias Municipais de Agricultura
+- Processo: Geralmente presencial (levar documentos), mas pode ter agendamento online em alguns locais
+- Gratuito
+- Como encontrar: Buscar "Emater [CIDADE] [ESTADO]" no Google ou site emater.gov.br
+- Alternativa: Sindicato dos Trabalhadores Rurais da cidade também emite
+
+Conta Bancária:
+- Pode ser aberta em qualquer banco (Banco do Brasil, Caixa, Bradesco, etc.)
+- Processo: Presencial ou online (depende do banco)
+- Documentos: CPF, RG, comprovante de endereço
+- Alguns bancos permitem abertura 100% online
+
+Comprovante de Endereço:
+- Pode ser: Conta de luz, água, telefone dos últimos 3 meses
+- Se não tiver, pode usar declaração de posse da terra ou contrato de arrendamento
+
+Como encontrar órgãos específicos:
+- Emater: Buscar "Emater [CIDADE] [ESTADO]" no Google ou site emater.gov.br. Telefone geral: 0800 721 3000
+- Receita Federal: Buscar "Receita Federal [CIDADE]" ou usar site receita.fazenda.gov.br. Telefone: 146
+- Prefeituras: Site da prefeitura de [CIDADE] ou telefone 156 (disque prefeitura)
+- Sindicatos Rurais: Buscar "Sindicato Trabalhadores Rurais [CIDADE] [ESTADO]"
+
+Processos Online Disponíveis:
+- MEI: 100% online em gov.br/mei
+- CNPJ completo: Pode ser iniciado online em receita.fazenda.gov.br
+- Certidões negativas: Podem ser tiradas online em gov.br (Receita Federal, INSS, FGTS)
+- Consulta de DAP: Pode ser consultada online no site do MDA
+
+SE O RAG NÃO TIVER INFORMAÇÕES ESPECÍFICAS:
+- Use conhecimento geral sobre processos brasileiros
+- Mencione sites oficiais (gov.br, receita.fazenda.gov.br, emater.gov.br, etc.)
+- Forneça instruções de como pesquisar: "Busque 'Emater [CIDADE] [ESTADO]' no Google" ou "Acesse o site emater.gov.br e procure o escritório da sua região"
+- Mencione telefones de atendimento quando relevante (156 para prefeituras, 146 para Receita Federal, 0800 721 3000 para Emater)
+- SEMPRE mencione alternativas (MEI para CNPJ individual)
+- SEMPRE mencione se há processo online disponível
+- Se não souber endereço exato, forneça instruções claras de como encontrar: "Busque no Google 'Emater [CIDADE] [ESTADO]' para encontrar endereço e telefone" ou "Ligue 156 (disque prefeitura) e peça o endereço da Secretaria de Agricultura"
+
+INSTRUÇÕES CRÍTICAS - SEJA HIPERESPECÍFICO:
+1. ANALISE PRIMEIRO: O que o produtor JÁ TEM vs o que FALTA (veja seção "DOCUMENTOS E TAREFAS")
+2. LOCALIZAÇÃO É CRÍTICA: 
+   - Se houver cidade/estado no contexto, você DEVE encontrar o local MAIS PRÓXIMO
+   - Para cada step, forneça:
+     * Nome COMPLETO do órgão/escritório
+     * Endereço COMPLETO (rua, número, bairro, cidade, CEP se possível)
+     * Telefone de contato (se disponível no RAG ou contexto)
+     * Horário de funcionamento (se disponível)
+     * Como chegar (referências próximas, se souber)
+   - Se a cidade for pequena e não houver escritório local, indique a cidade MAIS PRÓXIMA com o endereço completo
+   - Exemplo BOM: "Emater de Barra do Piraí - Rua Principal, 123, Centro, Barra do Piraí/RJ, CEP 27100-000. Telefone: (24) 1234-5678. Funciona de segunda a sexta, 8h às 17h."
+   - Exemplo RUIM: "Vá até a Emater da sua cidade" ou "Procure a Emater mais próxima"
+3. DOCUMENTOS ESPECÍFICOS: Liste EXATAMENTE o que o produtor precisa levar, baseado no que ele JÁ TEM:
+   - Se já tem CPF, não mencione "precisa de CPF"
+   - Se já tem conta bancária, não mencione "precisa de conta"
+   - Liste apenas o que FALTA ou precisa ser atualizado
+4. PERSONALIZE CADA PASSO:
+   - Mencione o nome do produtor quando relevante
+   - Mencione os produtos específicos que ele produz
+   - Adapte instruções ao tipo de produtor (individual/formal/informal)
+   - Considere o que ele já completou (não repita tarefas já feitas)
+5. USE RAG INTENSIVAMENTE: 
+   - Informações dos documentos oficiais são PRIORITÁRIAS
+   - Se o RAG mencionar locais específicos, endereços, telefones, USE-OS
+   - Se o RAG mencionar procedimentos específicos para a região, USE-OS
+6. PRAZOS ESPECÍFICOS: Sempre mencione prazos realistas (ex: "5 dias úteis", "na hora", "até 15 dias")
+7. LINGUAGEM: Simples, frases curtas, sem termos técnicos sem explicação
+8. NUNCA: Dizer "obrigatório por lei" ou dar parecer jurídico
+9. FOCO: Cada passo deve ser ACIONÁVEL IMEDIATAMENTE - o produtor deve saber EXATAMENTE onde ir, o que levar, quando ir
+
+SAÍDA JSON:
 {{
-  "summary": "Para se formalizar como produtor, você precisa fazer um cadastro simples.",
+  "summary": "Resumo do que precisa ser feito, considerando o que já foi feito. Mencione nome do produtor e produtos específicos.",
   "steps": [
     {{
       "step": 1,
-      "title": "Procurar apoio local",
-      "description": "Vá até a Secretaria de Agricultura ou EMATER do seu município."
-    }},
-    {{
-      "step": 2,
-      "title": "Levar documentos básicos",
-      "description": "Leve CPF, RG e um comprovante simples de que você produz alimentos."
+      "title": "Título do passo COM LOCALIZAÇÃO ESPECÍFICA (ex: 'Obter DAP na Emater de [CIDADE], [ESTADO]')",
+      "description": "Descrição HIPERESPECÍFICA: endereço completo, telefone, horário, como chegar, documentos EXATOS a levar (apenas o que falta), prazos específicos. Seja literalmente específico - o produtor deve saber EXATAMENTE onde ir."
     }}
   ],
   "estimated_time_days": 7,
-  "where_to_go": [
-    "Secretaria Municipal de Agricultura",
-    "EMATER"
-  ],
+  "where_to_go": ["Endereço COMPLETO do local 1 (rua, número, bairro, cidade, CEP)", "Endereço COMPLETO do local 2"],
   "confidence_level": "high"
-}}"""
+}}
+
+IMPORTANTE: Para "where_to_go", forneça endereços COMPLETOS, não apenas nomes genéricos. Se não souber o endereço exato, indique a cidade mais próxima e peça para o produtor ligar antes para confirmar endereço e horário."""
+
+AGENT_SYSTEM_PROMPT = ENHANCED_AGENT_SYSTEM_PROMPT  # Keep for backward compatibility
 
 
 def format_producer_profile(profile: dict | None) -> str:
@@ -79,18 +142,160 @@ def format_producer_profile(profile: dict | None) -> str:
     if profile.get("name"):
         parts.append(f"Nome: {profile['name']}")
     if profile.get("producer_type"):
-        parts.append(f"Tipo: {profile['producer_type']}")
+        producer_type_map = {
+            "individual": "produtor individual",
+            "informal": "grupo informal",
+            "formal": "grupo formal (CNPJ)"
+        }
+        producer_type_str = producer_type_map.get(profile.get("producer_type"), profile.get("producer_type", "produtor"))
+        parts.append(f"Tipo: {producer_type_str}")
     if profile.get("city") and profile.get("state"):
         parts.append(f"Localização: {profile['city']}, {profile['state']}")
+    if profile.get("address"):
+        parts.append(f"Endereço: {profile['address']}")
+    if profile.get("dap_caf_number"):
+        parts.append(f"DAP/CAF: {profile['dap_caf_number']} (JÁ POSSUI)")
+    elif profile.get("dap_caf_number") is None:
+        parts.append("DAP/CAF: Ainda não possui (em processo de obtenção)")
+    if profile.get("cnpj"):
+        parts.append(f"CNPJ: {profile['cnpj']} (JÁ POSSUI)")
+    if profile.get("cpf"):
+        parts.append(f"CPF: {profile['cpf']} (JÁ POSSUI)")
+    if profile.get("bank_name"):
+        parts.append(f"Conta bancária: {profile.get('bank_name')} - Agência {profile.get('bank_agency')}")
 
     if not parts:
         return "Perfil básico criado."
     return "\n".join(parts)
 
 
+def format_onboarding_context(answers: dict) -> str:
+    """
+    Format onboarding answers for additional context.
+
+    Args:
+        answers: Dictionary mapping question_id to answer
+
+    Returns:
+        Formatted string with relevant context
+    """
+    context_parts = []
+    
+    # Localização (se não estiver no profile)
+    city = answers.get("city")
+    state = answers.get("state")
+    if city or state:
+        location_str = ", ".join(filter(None, [city, state]))
+        if location_str:
+            context_parts.append(f"Localização: {location_str}")
+    
+    # Produtos principais
+    main_products = answers.get("main_products", [])
+    if main_products:
+        if isinstance(main_products, list):
+            products_str = ", ".join(main_products)
+        else:
+            products_str = str(main_products)
+        context_parts.append(f"Produtos principais: {products_str}")
+    
+    # Capacidade de produção
+    production_capacity = answers.get("production_capacity")
+    if production_capacity:
+        context_parts.append(f"Capacidade de produção: {production_capacity}")
+    
+    # Tipo de produção
+    production_type = answers.get("production_type")
+    if production_type:
+        context_parts.append(f"Tipo de produção: {production_type}")
+    
+    # Comunidade tradicional
+    is_traditional = answers.get("is_indigenous_or_traditional", False)
+    if is_traditional:
+        context_parts.append("Faz parte de povo indígena ou comunidade tradicional (quilombola, ribeirinha, etc.)")
+    
+    # Experiência prévia
+    has_previous_sales = answers.get("has_previous_sales", False)
+    if has_previous_sales:
+        context_parts.append("Já vendeu para programas públicos anteriormente")
+    else:
+        context_parts.append("Ainda não vendeu para programas públicos (primeira vez)")
+    
+    # DAP/CAF status
+    has_dap_caf = answers.get("has_dap_caf", False)
+    if has_dap_caf:
+        context_parts.append("Já possui DAP/CAF")
+    else:
+        context_parts.append("Ainda não possui DAP/CAF (precisa obter)")
+    
+    if not context_parts:
+        return ""
+    
+    return "\n".join(context_parts)
+
+
+def format_formalization_status(status: dict | None) -> str:
+    """
+    Format formalization status for context with detailed information.
+
+    Args:
+        status: FormalizationStatusResponse object, dictionary, or None
+
+    Returns:
+        Formatted string with detailed status information
+    """
+    if not status:
+        return "Status de formalização ainda não calculado."
+    
+    # Convert Pydantic model to dict if needed
+    if hasattr(status, 'model_dump'):
+        status = status.model_dump()
+    elif hasattr(status, 'dict'):
+        status = status.dict()
+    elif not isinstance(status, dict):
+        # If it's a Pydantic model, try to access attributes directly
+        status = {
+            "eligibility_level": getattr(status, "eligibility_level", None),
+            "score": getattr(status, "score", None),
+            "requirements_met": getattr(status, "requirements_met", []),
+            "requirements_missing": getattr(status, "requirements_missing", []),
+            "recommendations": getattr(status, "recommendations", []),
+        }
+    
+    parts = []
+    if status.get("eligibility_level"):
+        eligibility_map = {
+            "eligible": "Totalmente elegível",
+            "partially_eligible": "Parcialmente elegível",
+            "not_eligible": "Não elegível"
+        }
+        level = eligibility_map.get(status.get("eligibility_level"), status.get("eligibility_level"))
+        parts.append(f"Status de elegibilidade: {level}")
+    
+    if status.get("score") is not None:
+        parts.append(f"Pontuação: {status.get('score')}/100")
+    
+    if status.get("requirements_met"):
+        met = ", ".join(status.get("requirements_met", []))
+        parts.append(f"✅ Requisitos ATENDIDOS: {met}")
+    
+    if status.get("requirements_missing"):
+        missing = ", ".join(status.get("requirements_missing", []))
+        parts.append(f"❌ Requisitos FALTANTES: {missing}")
+    
+    if status.get("recommendations"):
+        recommendations = "\n  - ".join(status.get("recommendations", []))
+        parts.append(f"💡 Recomendações:\n  - {recommendations}")
+    
+    if not parts:
+        return "Status de formalização ainda não calculado."
+    
+    return "\n".join(parts)
+
+
 def format_rag_chunks(chunks: list[dict]) -> str:
     """
-    Format RAG chunks for the prompt.
+    Format RAG chunks for the prompt with enhanced formatting.
+    Emphasizes location-specific information.
 
     Args:
         chunks: List of RAG chunk dictionaries
@@ -101,13 +306,133 @@ def format_rag_chunks(chunks: list[dict]) -> str:
     if not chunks:
         return "Nenhum documento de referência específico disponível."
 
+    location_chunks = []
+    online_chunks = []
+    alternative_chunks = []
+    general_chunks = []
+    
+    # Separate chunks by type
+    for chunk in chunks:
+        content = chunk.get("content", "").lower()
+        topic = chunk.get("topic", "").lower()
+        full_text = f"{content} {topic}"
+        
+        # Check for location-specific information
+        location_keywords = ["emater", "endereço", "rua", "telefone", "horário", "funcionamento", 
+                            "escritório", "secretaria", "municipal", "regional", "cidade", "município",
+                            "avenida", "bairro", "cep", "contato", "atendimento", "localização"]
+        if any(keyword in full_text for keyword in location_keywords):
+            location_chunks.append(chunk)
+            continue
+        
+        # Check for online process information
+        online_keywords = ["online", "portal", "site", "gov.br", "internet", "web", "digital", 
+                          "mei", "microempreendedor", "cadastro online", "sistema"]
+        if any(keyword in full_text for keyword in online_keywords):
+            online_chunks.append(chunk)
+            continue
+        
+        # Check for alternative information (MEI, etc.)
+        alternative_keywords = ["mei", "microempreendedor", "alternativa", "opção", "pode também",
+                               "outra forma", "também é possível"]
+        if any(keyword in full_text for keyword in alternative_keywords):
+            alternative_chunks.append(chunk)
+            continue
+        
+        general_chunks.append(chunk)
+    
+    # Prioritize: location > online > alternatives > general
+    prioritized_chunks = location_chunks + online_chunks + alternative_chunks + general_chunks
+    
     formatted = []
-    for i, chunk in enumerate(chunks, 1):
+    for i, chunk in enumerate(prioritized_chunks, 1):
         content = chunk.get("content", "")
         source = chunk.get("source", "Documento")
-        formatted.append(f"\n[Documento {i} - {source}]\n{content}")
+        topic = chunk.get("topic", "")
+        page = chunk.get("page")
+        
+        # Mark chunks by type
+        if chunk in location_chunks:
+            marker = "📍 "
+        elif chunk in online_chunks:
+            marker = "💻 "
+        elif chunk in alternative_chunks:
+            marker = "🔄 "
+        else:
+            marker = ""
+        
+        header = f"{marker}[Documento {i} - {source}"
+        if topic:
+            header += f" | Tópico: {topic}"
+        if page:
+            header += f" | Página {page}"
+        header += "]"
+        
+        formatted.append(f"\n{header}\n{content}")
+
+    # Add warnings about important chunks
+    warnings = []
+    if location_chunks:
+        warnings.append("📍 Chunks marcados com 📍 contêm informações sobre LOCAIS, ENDEREÇOS COMPLETOS, TELEFONES, HORÁRIOS. USE-OS para fornecer endereços LITERALMENTE ESPECÍFICOS!")
+    if online_chunks:
+        warnings.append("💻 Chunks marcados com 💻 contêm informações sobre PROCESSOS ONLINE. SEMPRE mencione processos online quando disponíveis!")
+    if alternative_chunks:
+        warnings.append("🔄 Chunks marcados com 🔄 contêm informações sobre ALTERNATIVAS (ex: MEI para CNPJ). SEMPRE mencione alternativas quando aplicáveis!")
+    
+    if warnings:
+        formatted.insert(0, "⚠️ ATENÇÃO CRÍTICA:\n" + "\n".join(warnings) + "\n")
 
     return "\n".join(formatted)
+
+def format_complete_context(context: dict | None) -> str:
+    """
+    Format complete context (documents, tasks) for the prompt.
+
+    Args:
+        context: Dictionary with complete context
+
+    Returns:
+        Formatted string with context information
+    """
+    if not context:
+        return ""
+    
+    parts = []
+    
+    # Documents
+    documents = context.get("documents", [])
+    if documents:
+        doc_parts = []
+        for doc in documents:
+            doc_type = doc.get("type", "desconhecido")
+            status = doc.get("status", "desconhecido")
+            ai_validated = doc.get("ai_validated", False)
+            status_str = f"{status}"
+            if ai_validated:
+                status_str += " (validado por IA)"
+            doc_parts.append(f"  - {doc_type}: {status_str}")
+        if doc_parts:
+            parts.append("Documentos enviados:")
+            parts.extend(doc_parts)
+    
+    # Completed tasks
+    tasks_completed = context.get("tasks_completed", [])
+    if tasks_completed:
+        completed_parts = [f"  - {task.get('title', 'Tarefa')}" for task in tasks_completed]
+        parts.append("✅ Tarefas COMPLETADAS:")
+        parts.extend(completed_parts)
+    
+    # Pending tasks
+    tasks_pending = context.get("tasks_pending", [])
+    if tasks_pending:
+        pending_parts = [f"  - {task.get('title', 'Tarefa')}" for task in tasks_pending]
+        parts.append("⏳ Tarefas PENDENTES:")
+        parts.extend(pending_parts)
+    
+    if not parts:
+        return ""
+    
+    return "\n".join(parts)
 
 
 def build_prompt(
@@ -133,4 +458,133 @@ def build_prompt(
         producer_profile=profile_text,
         requirement=requirement_text,
         rag_chunks=chunks_text,
+    )
+
+
+def _get_requirement_specific_instructions(requirement_id: str, producer_type: str | None = None) -> str:
+    """
+    Get specific instructions for a requirement based on requirement_id.
+    
+    Args:
+        requirement_id: The requirement ID (e.g., "cnpj", "dap_caf")
+        producer_type: Producer type (individual, formal, informal)
+    
+    Returns:
+        String with specific instructions for the requirement
+    """
+    instructions_map = {
+        "cnpj": """
+IMPORTANTE - CNPJ/Formalização:
+- Se o produtor for INDIVIDUAL: SEMPRE explique que pode abrir MEI online em gov.br/mei
+  * MEI é gratuito, 100% online, leva ~15 minutos
+  * Não precisa ir a lugar nenhum
+  * CNPJ sai na hora
+  * Permite emitir notas fiscais para programas públicos
+  * Mencione esta opção PRIMEIRO, antes de qualquer outra
+- Se for grupo FORMAL: Explique processo de CNPJ completo na Receita Federal
+  * Pode ser iniciado online em receita.fazenda.gov.br
+  * Pode precisar comparecer presencialmente dependendo do caso
+  * Forneça endereço da Receita Federal mais próxima ou instruções de como encontrar
+  * Telefone: 146
+- SEMPRE mencione a opção online primeiro quando disponível
+- SEMPRE forneça endereço específico ou instruções claras de como encontrar o órgão
+        """,
+        "dap_caf": """
+IMPORTANTE - DAP/CAF:
+- Mencione os órgãos que emitem: Emater, Sindicatos Rurais, Secretarias Municipais de Agricultura
+- Forneça endereço específico ou instruções de como encontrar:
+  * "Busque 'Emater [CIDADE] [ESTADO]' no Google"
+  * "Acesse emater.gov.br e procure o escritório da sua região"
+  * "Ligue 156 (disque prefeitura) e peça o endereço da Secretaria de Agricultura"
+- Telefone geral Emater: 0800 721 3000
+- Mencione se há agendamento online (alguns locais têm)
+- Processo geralmente é presencial, mas pode ter agendamento online
+        """,
+        "bank_account": """
+IMPORTANTE - Conta Bancária:
+- Pode ser aberta em qualquer banco (Banco do Brasil, Caixa, Bradesco, Itaú, etc.)
+- Muitos bancos permitem abertura online
+- Processo presencial: Ir até agência com CPF, RG, comprovante de endereço
+- Processo online: Acessar site do banco e seguir instruções
+- Sempre mencione ambas as opções (presencial e online)
+        """,
+        "address_proof": """
+IMPORTANTE - Comprovante de Endereço:
+- Pode ser: Conta de luz, água, telefone dos últimos 3 meses
+- Alternativas: Declaração de posse da terra, contrato de arrendamento
+- Se não tiver, pode solicitar declaração no sindicato rural ou Emater
+        """,
+    }
+    
+    base_instruction = instructions_map.get(requirement_id, "")
+    
+    # Add producer type specific instructions for CNPJ
+    if requirement_id == "cnpj" and producer_type == "individual":
+        return instructions_map["cnpj"] + "\n\n⚠️ ATENÇÃO ESPECIAL: Este produtor é INDIVIDUAL. A opção MEI online é a MAIS SIMPLES e RÁPIDA. Destaque isso claramente!"
+    
+    return base_instruction
+
+
+def build_personalized_prompt(
+    producer_profile: dict | None,
+    requirement_text: str,
+    rag_chunks: list[dict],
+    onboarding_answers: dict | None = None,
+    formalization_status: dict | None = None,
+    complete_context: dict | None = None,
+    requirement_id: str | None = None,
+) -> str:
+    """
+    Build a personalized prompt with enriched context from onboarding and formalization.
+
+    Args:
+        producer_profile: Producer profile dictionary or None
+        requirement_text: Text description of the requirement
+        rag_chunks: List of relevant RAG chunks
+        onboarding_answers: Dictionary of onboarding answers (question_id -> answer)
+        formalization_status: FormalizationStatusResponse dictionary or None
+        complete_context: Dictionary with complete context (documents, tasks)
+
+    Returns:
+        Complete formatted prompt with personalized context
+    """
+    # Build base profile context (enhanced with all fields)
+    profile_text = format_producer_profile(producer_profile)
+    
+    # Add onboarding context (always include, even if profile exists)
+    onboarding_context = ""
+    if onboarding_answers:
+        onboarding_context = format_onboarding_context(onboarding_answers)
+        if onboarding_context:
+            if profile_text and "Perfil ainda não criado" not in profile_text:
+                profile_text += "\n\nInformações adicionais do onboarding:\n" + onboarding_context
+            else:
+                # If no profile, use onboarding context as main profile info
+                profile_text = "Informações do produtor (do onboarding):\n" + onboarding_context
+    
+    # Add formalization status context (detailed)
+    status_context = format_formalization_status(formalization_status)
+    
+    # Add complete context (documents and tasks)
+    context_text = format_complete_context(complete_context)
+    
+    # Format RAG chunks (enhanced)
+    chunks_text = format_rag_chunks(rag_chunks)
+    
+    # Build enhanced prompt
+    prompt = ENHANCED_AGENT_SYSTEM_PROMPT
+    
+    # Add instructions for traditional communities
+    if onboarding_answers and onboarding_answers.get("is_indigenous_or_traditional"):
+        prompt = prompt.replace(
+            "INSTRUÇÕES:",
+            "IMPORTANTE: Este produtor faz parte de comunidade tradicional. Considere a Nota Técnica 03/2020 do MPF, que permite autoconsumo sem registros sanitários para produtos produzidos e consumidos na mesma comunidade.\n\nINSTRUÇÕES:"
+        )
+    
+    return prompt.format(
+        producer_profile_full=profile_text,
+        formalization_status_detailed=status_context,
+        completed_vs_pending=context_text,
+        requirement=requirement_text,
+        rag_chunks_enhanced=chunks_text,
     )

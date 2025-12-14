@@ -55,12 +55,23 @@ class FormalizationService:
         responses: dict[str, Any] = {}
         for question_id, answer_doc in answers_dict.items():
             responses[question_id] = answer_doc.answer
+        
+        # If no onboarding answers, try to get producer_type from profile
+        if not responses:
+            try:
+                producer_profile = await self.db.producer_profiles.find_one({"user_id": user_oid})
+                if producer_profile and producer_profile.get("producer_type"):
+                    responses["producer_type"] = producer_profile.get("producer_type")
+            except Exception:
+                pass
 
         # Calculate diagnosis (pure function)
         diagnosis = calculate_eligibility(responses)
 
         # If no cached status or diagnosis changed, save/update cache
         now = utc_now()
+        # Always sync tasks to ensure they're up to date (even if diagnosis didn't change)
+        # This ensures tasks are created even for new users
         if not cached_doc or self._has_diagnosis_changed(cached_doc, diagnosis):
             status_doc = {
                 "user_id": user_oid,
@@ -80,9 +91,11 @@ class FormalizationService:
                 upsert=True,
             )
 
-            # Sync tasks based on new diagnosis
-            await self._sync_tasks_from_diagnosis(user_id, diagnosis, responses)
-        else:
+        # Always sync tasks based on current diagnosis (even if status didn't change)
+        # This ensures tasks are created/updated for all users
+        await self._sync_tasks_from_diagnosis(user_id, diagnosis, responses)
+        
+        if cached_doc:
             # Use cached diagnosis date
             now = cached_doc.get("diagnosed_at", now)
 
@@ -126,6 +139,15 @@ class FormalizationService:
         user_oid = to_object_id(user_id)
         now = utc_now()
 
+        # If no onboarding responses, try to get producer_type from profile
+        if not responses or "producer_type" not in responses:
+            try:
+                profile_doc = await self.db.producer_profiles.find_one({"user_id": user_oid})
+                if profile_doc and profile_doc.get("producer_type"):
+                    responses["producer_type"] = profile_doc.get("producer_type")
+            except Exception:
+                pass
+
         # Get onboarding questions for dynamic matching
         questions_dict: dict[str, Any] = {}
         try:
@@ -137,6 +159,7 @@ class FormalizationService:
             questions_dict = {}
 
         # Generate tasks from diagnosis with questions for dynamic matching
+        # Pass None if questions_dict is empty to use fallback logic
         new_tasks = generate_formalization_tasks(
             diagnosis, responses, questions_dict if questions_dict else None
         )
@@ -155,18 +178,26 @@ class FormalizationService:
 
             if existing_task:
                 # Update existing task if needed (preserve completion status)
+                # Always update requirement_id even if task is completed (for AI guide generation)
+                update_fields = {
+                    "title": task_data["title"],
+                    "description": task_data["description"],
+                    "category": task_data["category"],
+                    "priority": task_data["priority"],
+                    "requirement_id": task_data.get("requirement_id"),
+                }
+                
+                # Only update other fields if task is not completed
                 if not existing_task.completed:
                     await self.tasks_collection.update_one(
                         {"_id": existing_task.id, "user_id": user_oid},
-                        {
-                            "$set": {
-                                "title": task_data["title"],
-                                "description": task_data["description"],
-                                "category": task_data["category"],
-                                "priority": task_data["priority"],
-                                "requirement_id": task_data.get("requirement_id"),
-                            }
-                        },
+                        {"$set": update_fields},
+                    )
+                else:
+                    # Task is completed, but still update requirement_id for AI guide
+                    await self.tasks_collection.update_one(
+                        {"_id": existing_task.id, "user_id": user_oid},
+                        {"$set": {"requirement_id": task_data.get("requirement_id")}},
                     )
             else:
                 # Insert new task
@@ -180,6 +211,7 @@ class FormalizationService:
                     "completed": False,
                     "completed_at": None,
                     "created_at": now,
+                    "requirement_id": task_data.get("requirement_id"),
                 }
                 await self.tasks_collection.insert_one(task_doc)
 

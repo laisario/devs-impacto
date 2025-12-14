@@ -54,6 +54,8 @@ async def generate_guide(
 
     Uses RAG to retrieve relevant information from official documents
     and AI to generate a step-by-step guide adapted to the producer's profile.
+    
+    First tries to return a cached guide if available, otherwise generates a new one.
 
     Args:
         request: Guide generation request with requirement_id
@@ -68,5 +70,34 @@ async def generate_guide(
         500: If guide generation fails
     """
     user_id = str(current_user.id)
-    guide = await service.generate_guide(user_id, request.requirement_id)
+    # Try to get cached guide first, generate if not found
+    guide = await service.get_or_generate_guide(user_id, request.requirement_id)
     return guide
+
+
+@router.post(
+    "/regenerate-all",
+    status_code=status.HTTP_200_OK,
+    summary="Regenerate all guides",
+    description="Force regeneration of all guides for the current user.",
+)
+async def regenerate_all_guides(
+    current_user: CurrentUser,
+    service: AIFormalizationService = Depends(get_ai_formalization_service),
+) -> dict[str, str]:
+    """
+    Force regeneration of all guides for the current user.
+
+    This will regenerate guides for all tasks with requirement_id,
+    overwriting any cached guides.
+
+    Args:
+        current_user: Current authenticated user
+        service: AIFormalizationService instance
+
+    Returns:
+        Success message
+    """
+    user_id = str(current_user.id)
+    await service.generate_guides_for_user(user_id)
+    return {"message": "Guides regenerated successfully"}

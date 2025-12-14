@@ -101,6 +101,9 @@ export interface DocumentResponse {
   file_key: string;
   original_filename: string;
   uploaded_at: string;
+  ai_notes?: string | null;
+  ai_validated?: boolean;
+  ai_confidence?: string | null;
 }
 
 export interface PaginatedResponse<T> {

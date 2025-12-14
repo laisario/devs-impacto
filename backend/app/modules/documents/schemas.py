@@ -81,6 +81,9 @@ class DocumentResponse(BaseModel):
     file_key: str
     original_filename: str
     uploaded_at: datetime
+    ai_notes: str | None = Field(None, description="Notas geradas pela IA após validação")
+    ai_validated: bool = Field(default=False, description="Se o documento foi validado pela IA")
+    ai_confidence: str | None = Field(None, description="Nível de confiança da validação (high/medium/low)")
 
     model_config = {"populate_by_name": True}
 
@@ -95,6 +98,9 @@ class DocumentInDB(BaseModel):
     file_key: str
     original_filename: str
     uploaded_at: datetime
+    ai_notes: str | None = None
+    ai_validated: bool = False
+    ai_confidence: str | None = None
 
     model_config = {"populate_by_name": True}
 

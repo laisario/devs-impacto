@@ -179,18 +179,22 @@ cd frontend && npm run test:e2e
 ## Variáveis de Ambiente
 
 ### Backend
-Criar `backend/.env`:
+Criar `backend/.env` (opcional, pode usar docker-compose.override.yml):
 ```
 MONGODB_URI=mongodb://localhost:27017
 DATABASE_NAME=pnae_dev
 JWT_SECRET=your-secret-key
+OPENAI_API_KEY=sk-sua-chave-aqui  # Para funcionalidades GenAI
+LLM_PROVIDER=openai               # "openai" ou "mock"
 ```
 
 ### Frontend
-Criar `frontend/.env`:
+Criar `frontend/.env` (opcional):
 ```
 VITE_API_BASE_URL=http://localhost:8000
 ```
+
+**💡 Dica:** A forma mais fácil é editar `docker-compose.override.yml` e adicionar as variáveis lá. Veja `QUICK_START.md` para instruções detalhadas.
 
 ## Documentação da API
 

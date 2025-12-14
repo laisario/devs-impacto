@@ -3,6 +3,8 @@ Producers module router.
 Endpoints for producer profile management.
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, status
 
 from app.core.db import get_database
@@ -21,6 +23,35 @@ async def get_producer_service() -> ProducerService:
     """Get ProducerService instance."""
     db = get_database()
     return ProducerService(db)
+
+
+async def generate_guides_async(user_id: str) -> None:
+    """Background task to generate guides for user."""
+    try:
+        # Lazy imports to avoid circular dependency
+        from app.modules.ai_formalization.llm_client import create_llm_client
+        from app.modules.ai_formalization.rag import RAGService
+        from app.modules.ai_formalization.service import AIFormalizationService
+        from app.modules.onboarding.service import OnboardingService
+        
+        db = get_database()
+        rag_service = RAGService(db)
+        llm_client = create_llm_client()
+        onboarding_service = OnboardingService(db)
+        producer_service = ProducerService(db)
+        
+        ai_service = AIFormalizationService(
+            db=db,
+            rag_service=rag_service,
+            llm_client=llm_client,
+            onboarding_service=onboarding_service,
+            producer_service=producer_service,
+        )
+        
+        await ai_service.generate_guides_for_user(user_id)
+    except Exception as e:
+        # Log error but don't fail the request
+        print(f"Error generating guides in background: {e}")
 
 
 @router.put(
@@ -44,9 +75,28 @@ async def upsert_producer_profile(
     - individual: requires cpf, dap_caf_number
 
     All types require DAP/CAF (Declaração de Aptidão ao Pronaf).
+    
+    Automatically generates AI guides for all tasks when profile is complete.
     """
     user_id = str(current_user.id)
     profile = await service.upsert_profile(user_id, data)
+    
+    # Check if profile is complete and generate guides in background
+    try:
+        # Check if profile has minimum required fields
+        required_fields = ["producer_type", "name", "address", "city", "state"]
+        is_complete = all(
+            getattr(profile, field, None) for field in required_fields
+        )
+        
+        if is_complete:
+            # Generate guides in background (non-blocking)
+            # Use create_task to run async function in background
+            asyncio.create_task(generate_guides_async(user_id))
+    except Exception as e:
+        # Don't fail the request if guide generation fails
+        print(f"Error setting up guide generation: {e}")
+    
     return ProducerProfileResponse(**profile.model_dump(by_alias=True))
 
 

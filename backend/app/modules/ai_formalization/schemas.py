@@ -3,7 +3,11 @@ AI Formalization module schemas.
 Pydantic models for guide generation requests and responses.
 """
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field, field_validator
+
+from app.shared.utils import PyObjectId
 
 
 class GuideGenerationRequest(BaseModel):
@@ -80,3 +84,16 @@ class FormalizationGuideResponse(BaseModel):
             if step.step != i:
                 raise ValueError(f"Steps must be numbered sequentially. Expected {i}, got {step.step}")
         return v
+
+
+class FormalizationGuideInDB(BaseModel):
+    """Formalization guide stored in database."""
+
+    id: PyObjectId | None = Field(None, alias="_id")
+    user_id: PyObjectId
+    requirement_id: str
+    guide: FormalizationGuideResponse
+    generated_at: datetime
+    updated_at: datetime
+
+    model_config = {"populate_by_name": True}

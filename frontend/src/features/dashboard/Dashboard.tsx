@@ -59,6 +59,9 @@ export function Dashboard({
     status: 'uploaded', // Documents from API are already uploaded
     fileUrl: doc.file_url,
     uploadedAt: doc.uploaded_at,
+    aiNotes: doc.ai_notes || undefined,
+    aiValidated: doc.ai_validated || false,
+    aiConfidence: doc.ai_confidence || undefined,
   });
 
   useEffect(() => {

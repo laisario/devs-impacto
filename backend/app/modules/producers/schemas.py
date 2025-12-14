@@ -35,7 +35,7 @@ class ProducerType(str, Enum):
 class Member(BaseModel):
     """Member of an informal group."""
 
-    name: str = Field(..., min_length=2, max_length=200)
+    name: str = Field(..., min_length=1, max_length=200)
     cpf: str = Field(..., pattern=r"^\d{11}$", description="CPF sem pontuação (11 dígitos)")
     dap_caf_number: str | None = Field(
         None, max_length=50, description="Número da DAP/CAF do membro"
@@ -46,14 +46,15 @@ class ProducerProfileBase(BaseModel):
     """Base fields for producer profile."""
 
     producer_type: ProducerType = Field(..., description="Tipo de fornecedor")
-    name: str = Field(..., min_length=2, max_length=200, description="Nome/Razão social")
-    address: str = Field(..., min_length=5, max_length=500, description="Endereço completo")
-    city: str = Field(..., min_length=2, max_length=100)
+    name: str = Field(..., min_length=1, max_length=200, description="Nome/Razão social")
+    address: str = Field(..., min_length=1, max_length=500, description="Endereço completo")
+    city: str = Field(..., min_length=1, max_length=100)
     state: str = Field(..., min_length=2, max_length=2, description="UF (2 letras)")
 
     # DAP/CAF é obrigatório para todos - Declaração de Aptidão ao Pronaf
-    dap_caf_number: str = Field(
-        ...,
+    # Mas pode ser None temporariamente durante onboarding
+    dap_caf_number: str | None = Field(
+        None,
         max_length=50,
         description="Número da DAP (Declaração de Aptidão ao Pronaf) ou CAF",
     )
@@ -86,20 +87,24 @@ class ProducerProfileBase(BaseModel):
         - FORMAL: requires CNPJ
         - INFORMAL: requires CPF (representante) and members list
         - INDIVIDUAL: requires CPF
+        
+        Note: DAP/CAF is optional during onboarding, can be added later.
         """
         if self.producer_type == ProducerType.FORMAL:
             if not self.cnpj:
                 raise ValueError("CNPJ é obrigatório para fornecedor formal")
 
         elif self.producer_type == ProducerType.INFORMAL:
-            if not self.cpf:
-                raise ValueError("CPF do representante é obrigatório para grupo informal")
-            if not self.members or len(self.members) < 2:
-                raise ValueError("Grupo informal deve ter pelo menos 2 membros na lista")
+            # CPF comes from login/auth, not required here
+            # Members list is optional during onboarding
+            pass
 
         elif self.producer_type == ProducerType.INDIVIDUAL:
-            if not self.cpf:
-                raise ValueError("CPF é obrigatório para fornecedor individual")
+            # CPF comes from login/auth, not required here
+            pass
+
+        # DAP/CAF is optional - can be added later
+        # We don't validate it here to allow profile creation during onboarding
 
         return self
 

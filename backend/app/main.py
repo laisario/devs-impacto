@@ -34,12 +34,14 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
+from app.modules.ai_chat.router import router as ai_chat_router
 from app.modules.ai_formalization.router import router as ai_formalization_router
 from app.modules.auth.router import router as auth_router
 from app.modules.documents.router import router as documents_router
 from app.modules.formalization.router import router as formalization_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.producers.router import router as producers_router
+from app.modules.sales_project.router import router as sales_project_router
 
 
 @asynccontextmanager
@@ -96,6 +98,8 @@ def create_app() -> FastAPI:
     app.include_router(onboarding_router)
     app.include_router(formalization_router)
     app.include_router(ai_formalization_router)
+    app.include_router(ai_chat_router)
+    app.include_router(sales_project_router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict[str, str]:

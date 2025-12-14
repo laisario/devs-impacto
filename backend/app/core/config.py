@@ -36,9 +36,10 @@ class Settings(BaseSettings):
 
     # LLM Settings
     openai_api_key: str | None = None
-    llm_provider: str = "mock"  # openai | mock
+    llm_provider: str = "mock"  # openai | mock | deco
     llm_model: str = "gpt-4o-mini"
     rag_embedding_model: str = "text-embedding-3-small"
+    deco_api_url: str = "https://api.decocms.com/hackathon2/belo-projeto/triggers/5013e0dc-38dd-4af8-ad35-8c19cd2094cf"
 
 
 @lru_cache

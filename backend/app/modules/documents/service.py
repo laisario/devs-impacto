@@ -3,14 +3,24 @@ Documents module service.
 Business logic for document upload and management.
 """
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+import asyncio
+import base64
+import json
+from typing import Any
 
+import httpx
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from openai import OpenAI
+
+from app.core.config import settings
 from app.modules.documents.schemas import (
     DocumentCreate,
     DocumentInDB,
+    DocumentType,
     PresignRequest,
 )
 from app.modules.documents.storage import PresignedUpload, get_storage_provider
+from app.modules.producers.schemas import ProducerProfileResponse
 from app.shared.pagination import PaginationParams
 from app.shared.utils import to_object_id, utc_now
 

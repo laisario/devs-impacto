@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Leaf, MessageSquare, Mic, Play, Send, Square, X } from 'lucide-react';
 import type { ChatMessage } from '../../domain/models';
+import { sendChatMessage } from '../../services/api/chat';
+import { ApiClientError } from '../../services/api/client';
 
 export function ChatWidget({ userName }: { userName: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,32 +26,50 @@ export function ChatWidget({ userName }: { userName: string }) {
     scrollToBottom();
   }, [messages, isOpen]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const prompt = inputValue.trim();
-    if (!prompt) return;
+    if (!prompt || isTyping) return;
 
     const newMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: prompt };
     setMessages((prev) => [...prev, newMsg]);
     setInputValue('');
     setIsTyping(true);
+    setError('');
 
-    window.setTimeout(() => {
-      let replyText =
-        'Entendi. Para resolver isso, você precisa ir até a Secretaria de Agricultura com seu RG e CPF.';
+    try {
+      const response = await sendChatMessage({
+        message: prompt,
+        conversation_id: conversationId || undefined,
+      });
 
-      const normalized = prompt.toLowerCase();
-      if (normalized.includes('caf') || normalized.includes('dap')) {
-        replyText =
-          'A CAF (Cadastro Nacional da Agricultura Familiar) substituiu a DAP. Você pode solicitá-la no sindicato rural ou na Emater do seu município. Quer que eu liste os documentos necessários?';
-      } else if (normalized.includes('nota')) {
-        replyText =
-          'Para emitir Nota Fiscal, você precisa do cadastro de produtor na prefeitura. É um processo rápido e gratuito na maioria dos municípios.';
+      // Update conversation ID if returned
+      if (response.conversation_id) {
+        setConversationId(response.conversation_id);
       }
 
-      const replyMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: replyText };
+      const replyMsg: ChatMessage = {
+        id: response.id,
+        role: 'assistant',
+        content: response.content,
+      };
       setMessages((prev) => [...prev, replyMsg]);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message || 'Erro ao enviar mensagem. Tente novamente.');
+      } else {
+        setError('Erro ao enviar mensagem. Tente novamente.');
+      }
+      
+      // Add error message to chat
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente ou consulte a Emater para mais informações.',
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const toggleRecording = () => {
@@ -118,6 +138,11 @@ export function ChatWidget({ userName }: { userName: string }) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 bg-slate-50 space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                {error}
+              </div>
+            )}
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div

@@ -56,28 +56,62 @@ class RAGService:
             await self.collection.insert_many(documents)
 
     async def search_relevant_chunks(
-        self, requirement_id: str, limit: int = 5
+        self, query_text: str, limit: int = 15
     ) -> list[RAGChunk]:
         """
-        Search for relevant chunks by requirement ID.
+        Search for relevant chunks by requirement ID or text query.
+
+        Enhanced search that:
+        - Returns more chunks (default 15 instead of 5)
+        - Prioritizes chunks with exact requirement_id match
+        - Includes related chunks by topic
+        - Supports text search for location-specific queries
 
         Args:
-            requirement_id: The requirement ID to search for
-            limit: Maximum number of chunks to return (default: 5)
+            query_text: The requirement ID or text to search for
+            limit: Maximum number of chunks to return (default: 15)
 
         Returns:
             List of relevant RAG chunks
         """
-        # Filter chunks where applies_to array contains the requirement_id
-        # MongoDB automatically matches array fields with direct value
-        query = {"applies_to": requirement_id}
+        # First, try to find chunks by requirement_id (exact match)
+        query = {"applies_to": query_text}
 
-        cursor = self.collection.find(query).limit(limit)
+        cursor = self.collection.find(query).limit(limit).sort("created_at", -1)
         chunks = []
         async for doc in cursor:
             chunks.append(RAGChunk(**doc))
-
-        return chunks
+        
+        # If we have fewer chunks than limit, try text search
+        if len(chunks) < limit:
+            # Try text search in content (case-insensitive)
+            text_query = {
+                "$or": [
+                    {"content": {"$regex": query_text, "$options": "i"}},
+                    {"topic": {"$regex": query_text, "$options": "i"}},
+                ],
+                "applies_to": {"$ne": query_text}  # Exclude already found chunks
+            }
+            text_cursor = self.collection.find(text_query).limit(limit - len(chunks))
+            async for doc in text_cursor:
+                chunks.append(RAGChunk(**doc))
+        
+        # If we still have fewer chunks, try to get related chunks by topic
+        if len(chunks) < limit:
+            # Get topics from found chunks
+            topics = {chunk.topic for chunk in chunks if chunk.topic}
+            
+            # Search for chunks with related topics
+            if topics:
+                related_query = {
+                    "topic": {"$in": list(topics)},
+                    "applies_to": {"$ne": query_text}  # Exclude already found chunks
+                }
+                related_cursor = self.collection.find(related_query).limit(limit - len(chunks))
+                async for doc in related_cursor:
+                    chunks.append(RAGChunk(**doc))
+        
+        return chunks[:limit]
 
     async def search_by_topic(self, topic: str, limit: int = 5) -> list[RAGChunk]:
         """

@@ -30,5 +30,11 @@ export const API_ENDPOINTS = {
   },
   ai: {
     guide: '/ai/formalization/guide',
+    chat: '/ai/chat/message',
+  },
+  salesProject: {
+    draft: '/sales-project/draft',
+    list: '/sales-project',
+    get: (id: string) => `/sales-project/${id}`,
   },
 } as const;

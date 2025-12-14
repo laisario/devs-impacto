@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.modules.producers.schemas import (
     ProducerProfileCreate,
     ProducerProfileInDB,
+    ProducerType,
 )
 from app.shared.utils import to_object_id, utc_now
 
@@ -81,13 +82,32 @@ class ProducerService:
                 return None
 
             # Validate that the document has required fields before creating the model
-            # If it's a minimal profile created by onboarding, it might not have all fields
-            required_fields = {"producer_type", "name", "address", "city", "state", "dap_caf_number"}
-            if not required_fields.issubset(set(doc.keys())):
+            # DAP/CAF is optional (can be added later)
+            required_fields = {"producer_type", "name", "address", "city", "state"}
+            missing_fields = required_fields - set(doc.keys())
+            if missing_fields:
                 # This is a minimal profile created by onboarding, not a complete profile
                 # Return None so the user can create a proper profile
-                print(f"Profile exists but is missing required fields: {required_fields - set(doc.keys())}")
+                print(f"Profile exists but is missing required fields: {missing_fields}")
                 return None
+            
+            # Ensure dap_caf_number exists (can be None)
+            if "dap_caf_number" not in doc:
+                doc["dap_caf_number"] = None
+            
+            # Ensure CPF exists (comes from auth, not onboarding)
+            # We'll get it from the user document if needed
+            producer_type = doc.get("producer_type")
+            if "cpf" not in doc and producer_type in ["individual", "informal"]:
+                # Try to get CPF from user document
+                try:
+                    from app.modules.auth.service import AuthService
+                    auth_service = AuthService(self.db)
+                    user_doc = await auth_service.collection.find_one({"_id": user_oid})
+                    if user_doc and user_doc.get("cpf"):
+                        doc["cpf"] = user_doc["cpf"]
+                except Exception:
+                    pass
             
             try:
                 return ProducerProfileInDB(**doc)
@@ -97,7 +117,9 @@ class ProducerService:
                 print(f"Document keys: {list(doc.keys())}")
                 print(f"Document: {doc}")
                 print(traceback.format_exc())
-                raise
+                # If validation fails, return None instead of raising
+                # This allows the frontend to handle validation and show appropriate errors
+                return None
         except Exception as e:
             import traceback
             print(f"Error in get_profile_by_user: {e}")

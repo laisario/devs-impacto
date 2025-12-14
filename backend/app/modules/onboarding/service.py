@@ -497,17 +497,7 @@ class OnboardingService:
             profile_doc = await self.profiles_collection.find_one({"user_id": user_oid_check})
             dap_caf_number = profile_doc.get("dap_caf_number", "") if profile_doc else ""
             
-            # Check if has_dap_caf is True
-            has_dap_caf = answers.get("has_dap_caf")
-            if has_dap_caf and has_dap_caf.answer is True:
-                # If answered yes but no number in profile, can't create complete profile
-                if not dap_caf_number:
-                    return  # Can't create profile without DAP/CAF number
-            # If answered no, we can still create profile but DAP/CAF will be empty
-            # The schema requires it, so we'll use a placeholder or skip creation
-            # For now, if no DAP/CAF, we'll skip profile creation
-            if not dap_caf_number:
-                return  # Can't create profile without DAP/CAF (required field)
+            # DAP/CAF can be None - we'll create profile anyway (can be added later)
             
             # Build profile data
             name_answer = answers.get("name")
@@ -515,27 +505,23 @@ class OnboardingService:
             city_answer = answers.get("city")
             state_answer = answers.get("state")
             
+            # Build profile data with minimal validation (frontend handles detailed validation)
             profile_data = {
                 "producer_type": producer_type,
-                "name": str(name_answer.answer).strip() if name_answer else "",
-                "address": str(address_answer.answer).strip() if address_answer else "",
-                "city": str(city_answer.answer).strip() if city_answer else "",
-                "state": str(state_answer.answer).strip().upper()[:2] if state_answer else "",
-                "dap_caf_number": dap_caf_number,
+                "name": str(name_answer.answer).strip() if name_answer else "Nome não informado",
+                "address": str(address_answer.answer).strip() if address_answer else "Endereço não informado",
+                "city": str(city_answer.answer).strip() if city_answer else "Cidade não informada",
+                "state": str(state_answer.answer).strip().upper()[:2] if state_answer else "XX",
+                "dap_caf_number": dap_caf_number or None,  # Can be None
             }
             
             # Add CNPJ based on producer type (CPF comes from login/auth)
-            if producer_type == "formal":
-                cnpj_answer = answers.get("cnpj")
-                if cnpj_answer:
-                    cnpj_value = str(cnpj_answer.answer).strip()
-                    # Remove non-digits
-                    cnpj_clean = "".join(filter(str.isdigit, cnpj_value))[:14]
-                    if cnpj_clean:
-                        profile_data["cnpj"] = cnpj_clean
+            # Note: has_cnpj is a boolean question, not the CNPJ number itself
+            # For now, we don't have the CNPJ number in onboarding, so we skip it
+            # User can add it later via profile update
             
-            # Validate required fields
-            required = ["producer_type", "name", "address", "city", "state", "dap_caf_number"]
+            # Validate required fields (DAP/CAF is optional for now)
+            required = ["producer_type", "name", "address", "city", "state"]
             if not all(profile_data.get(field) for field in required):
                 print(f"Missing required fields for profile creation: {[f for f in required if not profile_data.get(f)]}")
                 return

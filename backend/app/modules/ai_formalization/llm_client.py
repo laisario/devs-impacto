@@ -1,10 +1,13 @@
 """
 LLM client interface and implementations.
-Supports OpenAI and mock provider for testing.
+Supports OpenAI, Deco API, and mock provider for testing.
 """
 
+import json
 from abc import ABC, abstractmethod
 from typing import Any
+
+import httpx
 
 from app.core.config import settings
 
@@ -131,12 +134,115 @@ class MockLLMClient(LLMClient):
         }
 
 
+class DecoAPIClient(LLMClient):
+    """Deco API implementation of LLM client."""
+
+    def __init__(self, api_url: str | None = None):
+        """
+        Initialize Deco API client.
+
+        Args:
+            api_url: Deco API URL. If None, uses DECO_API_URL from env.
+        """
+        self.api_url = api_url or getattr(settings, "deco_api_url", None)
+        if not self.api_url:
+            raise ValueError("Deco API URL is required. Set DECO_API_URL environment variable.")
+
+    async def generate(self, prompt: str) -> str:
+        """
+        Generate a response using Deco API.
+
+        Args:
+            prompt: The prompt to send
+
+        Returns:
+            The model's response as a string (should be JSON)
+        """
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                response = await client.post(
+                    self.api_url,
+                    json={
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "You are a helpful assistant that responds only with valid JSON."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ]
+                    },
+                )
+                response.raise_for_status()
+                
+                result = response.json()
+                # Deco API returns: {"result": {"structuredContent": {"text": "..."}}}
+                if isinstance(result, dict) and "result" in result:
+                    result_data = result["result"]
+                    if isinstance(result_data, dict):
+                        # Check for structuredContent (most common format)
+                        if "structuredContent" in result_data:
+                            structured = result_data["structuredContent"]
+                            if isinstance(structured, dict) and "text" in structured:
+                                text = structured["text"]
+                                # Remove markdown code blocks if present
+                                cleaned = text.strip()
+                                if cleaned.startswith("```json"):
+                                    cleaned = cleaned[7:]
+                                elif cleaned.startswith("```"):
+                                    cleaned = cleaned[3:]
+                                if cleaned.endswith("```"):
+                                    cleaned = cleaned[:-3]
+                                return cleaned.strip()
+                        # Check for content array
+                        if "content" in result_data:
+                            content = result_data["content"]
+                            if isinstance(content, list) and len(content) > 0:
+                                # If content is a list, try to get text from first item
+                                first = content[0]
+                                if isinstance(first, dict):
+                                    if "text" in first:
+                                        return first["text"]
+                                    elif "content" in first:
+                                        return first["content"]
+                            elif isinstance(content, str):
+                                return content
+                        # Check for message
+                        if "message" in result_data:
+                            message = result_data["message"]
+                            if isinstance(message, dict):
+                                if "content" in message:
+                                    return message["content"]
+                                elif "text" in message:
+                                    return message["text"]
+                            elif isinstance(message, str):
+                                return message
+                        # Check for response or text
+                        if "response" in result_data:
+                            return result_data["response"]
+                        if "text" in result_data:
+                            return result_data["text"]
+                
+                # If response is a string, return it
+                if isinstance(result, str):
+                    return result
+                
+                # Last resort: convert to JSON string
+                return json.dumps(result, ensure_ascii=False)
+            except httpx.HTTPStatusError as e:
+                raise ValueError(f"Deco API error: {e.response.status_code} - {e.response.text}")
+            except Exception as e:
+                raise ValueError(f"Error calling Deco API: {str(e)}")
+
+
 def create_llm_client() -> LLMClient:
     """
     Factory function to create LLM client based on configuration.
 
     Returns:
-        LLMClient instance (OpenAI or Mock)
+        LLMClient instance (OpenAI, Deco, or Mock)
     """
     provider = getattr(settings, "llm_provider", "mock").lower()
     model = getattr(settings, "llm_model", "gpt-4o-mini")
@@ -145,5 +251,8 @@ def create_llm_client() -> LLMClient:
         return MockLLMClient()
     elif provider == "openai":
         return OpenAIClient(model=model)
+    elif provider == "deco":
+        api_url = getattr(settings, "deco_api_url", None)
+        return DecoAPIClient(api_url=api_url)
     else:
-        raise ValueError(f"Unknown LLM provider: {provider}. Use 'openai' or 'mock'.")
+        raise ValueError(f"Unknown LLM provider: {provider}. Use 'openai', 'deco', or 'mock'.")

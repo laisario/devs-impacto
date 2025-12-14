@@ -187,6 +187,11 @@ def generate_formalization_tasks(
 ) -> list[dict[str, Any]]:
     """
     Generate list of formalization tasks based on diagnosis AND onboarding answers.
+    
+    Note: CNPJ tasks are only generated for formal producers (cooperatives/associations).
+    """
+    """
+    Generate list of formalization tasks based on diagnosis AND onboarding answers.
 
     Args:
         diagnosis: Result from calculate_eligibility()
@@ -206,50 +211,86 @@ def generate_formalization_tasks(
     """
     tasks: list[dict[str, Any]] = []
     
+    # Determine producer type from responses or profile
+    producer_type_pref = responses.get("producer_type", "").lower() if responses else ""
+    is_formal = producer_type_pref in ["formal (cnpj)", "formal", "grupo formal (cnpj)", "formal"]
+    
+    # Mapear requirement_id para tasks (comum para ambos os caminhos)
+    requirement_to_task = {
+        "dap_caf": {
+            "task_id": "obtain_dap_caf",
+            "title": "Obter DAP ou CAF",
+            "description": "Obtenha sua Declaração de Aptidão ao Pronaf na Emater ou órgão similar da sua região",
+            "category": "document",
+            "priority": "high",
+        },
+        "cnpj": {
+            "task_id": "obtain_cnpj",
+            "title": "Registrar CNPJ",
+            "description": "Registre CNPJ para sua cooperativa ou associação na Receita Federal",
+            "category": "registration",
+            "priority": "high",
+        },
+        "proof_address": {
+            "task_id": "obtain_address_proof",
+            "title": "Obter comprovante de endereço",
+            "description": "Tenha um comprovante de endereço atualizado",
+            "category": "document",
+            "priority": "medium",
+        },
+        "bank_statement": {
+            "task_id": "open_bank_account",
+            "title": "Abrir conta bancária",
+            "description": "Abra uma conta bancária para receber pagamentos dos programas públicos",
+            "category": "preparation",
+            "priority": "medium",
+        },
+    }
+    
     # Se temos questions, fazer matching direto baseado em requirement_id
-    if questions:
+    if questions and len(questions) > 0:
         requirements_status = map_onboarding_answers_to_requirements(responses, questions)
         
-        # Mapear requirement_id para tasks
-        requirement_to_task = {
-            "dap_caf": {
-                "task_id": "obtain_dap_caf",
-                "title": "Obter DAP ou CAF",
-                "description": "Obtenha sua Declaração de Aptidão ao Pronaf na Emater ou órgão similar da sua região",
-                "category": "document",
-                "priority": "high",
-            },
-            "cnpj": {
-                "task_id": "obtain_cnpj",
-                "title": "Registrar CNPJ",
-                "description": "Registre CNPJ para sua cooperativa ou associação na Receita Federal",
-                "category": "registration",
-                "priority": "high",
-            },
-            "proof_address": {
-                "task_id": "obtain_address_proof",
-                "title": "Obter comprovante de endereço",
-                "description": "Tenha um comprovante de endereço atualizado",
-                "category": "document",
-                "priority": "medium",
-            },
-            "bank_statement": {
-                "task_id": "open_bank_account",
-                "title": "Abrir conta bancária",
-                "description": "Abra uma conta bancária para receber pagamentos dos programas públicos",
-                "category": "preparation",
-                "priority": "medium",
-            },
-        }
-        
-        for requirement_id, is_met in requirements_status.items():
-            if not is_met and requirement_id in requirement_to_task:
-                task_data = requirement_to_task[requirement_id].copy()
-                task_data["requirement_id"] = requirement_id
-                tasks.append(task_data)
+        # Se não há respostas ou requirements_status está vazio, usar diagnosis como fallback
+        # requirements_status pode estar vazio se não há respostas ou se não há questions com requirement_id
+        if len(responses) == 0 or len(requirements_status) == 0:
+            # Fallback: usar diagnosis para determinar o que está faltando
+            for req in diagnosis["requirements_missing"]:
+                if "DAP" in req or "CAF" in req:
+                    if "dap_caf" in requirement_to_task:
+                        task_data = requirement_to_task["dap_caf"].copy()
+                        task_data["requirement_id"] = "dap_caf"
+                        tasks.append(task_data)
+                elif "CNPJ" in req:
+                    # Only generate CNPJ task for formal producers
+                    if is_formal and "cnpj" in requirement_to_task:
+                        task_data = requirement_to_task["cnpj"].copy()
+                        task_data["requirement_id"] = "cnpj"
+                        tasks.append(task_data)
+                elif "Conta bancária" in req:
+                    if "bank_statement" in requirement_to_task:
+                        task_data = requirement_to_task["bank_statement"].copy()
+                        task_data["requirement_id"] = "bank_statement"
+                        tasks.append(task_data)
+                elif "Comprovante de endereço" in req:
+                    if "proof_address" in requirement_to_task:
+                        task_data = requirement_to_task["proof_address"].copy()
+                        task_data["requirement_id"] = "proof_address"
+                        tasks.append(task_data)
+        else:
+            # Usar mapeamento normal quando há respostas
+            for requirement_id, is_met in requirements_status.items():
+                if not is_met and requirement_id in requirement_to_task:
+                    task_data = requirement_to_task[requirement_id].copy()
+                    task_data["requirement_id"] = requirement_id
+                    tasks.append(task_data)
     
     # Fallback para lógica antiga se não tiver questions (compatibilidade)
     else:
+        # Determine producer type for fallback logic
+        producer_type_pref = responses.get("producer_type", "").lower() if responses else ""
+        is_formal = producer_type_pref in ["formal (cnpj)", "formal", "grupo formal (cnpj)", "formal"]
+        
         # High priority tasks (blocking requirements)
         for req in diagnosis["requirements_missing"]:
             if "DAP" in req or "CAF" in req:
@@ -264,16 +305,18 @@ def generate_formalization_tasks(
                     }
                 )
             elif "CNPJ" in req:
-                tasks.append(
-                    {
-                        "task_id": "obtain_cnpj",
-                        "title": "Registrar CNPJ",
-                        "description": "Registre CNPJ para sua cooperativa ou associação na Receita Federal",
-                        "category": "registration",
-                        "priority": "high",
-                        "requirement_id": "cnpj",
-                    }
-                )
+                # Only generate CNPJ task for formal producers
+                if is_formal:
+                    tasks.append(
+                        {
+                            "task_id": "obtain_cnpj",
+                            "title": "Registrar CNPJ",
+                            "description": "Registre CNPJ para sua cooperativa ou associação na Receita Federal",
+                            "category": "registration",
+                            "priority": "high",
+                            "requirement_id": "cnpj",
+                        }
+                    )
 
         # Medium priority tasks (important but not blocking)
         if "Conta bancária" in diagnosis["requirements_missing"]:

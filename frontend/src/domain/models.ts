@@ -62,6 +62,8 @@ export interface Document {
   name: string; // original_filename
   status: DocStatus;
   aiNotes?: string;
+  aiValidated?: boolean;
+  aiConfidence?: string | null;
   fileUrl?: string;
   uploadedAt?: string;
 }

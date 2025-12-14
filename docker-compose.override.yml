@@ -9,6 +9,9 @@ services:
       - backend_venv:/app/.venv
     environment:
       - MONGODB_URI=mongodb+srv://admin:jQs2xrlrLhK6Ure3@hackasdb.bhcckki.mongodb.net/
+      # Ou use a Deco API (sem necessidade de API key):
+      - LLM_PROVIDER=deco
+      - DECO_API_URL=https://api.decocms.com/hackathon2/belo-projeto/triggers/5013e0dc-38dd-4af8-ad35-8c19cd2094cf
 
   frontend:
     volumes:
