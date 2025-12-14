@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Leaf, CreditCard } from 'lucide-react';
+import { ArrowLeft, CreditCard } from 'lucide-react';
 import { login as apiLogin } from '../../services/api/auth';
 import { ApiClientError } from '../../services/api/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -63,17 +63,16 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
-        <nav className="p-6 flex justify-between items-center max-w-6xl mx-auto w-full">
+        <nav className="py-2 px-6 flex justify-between items-center max-w-6xl mx-auto w-full h-20 relative">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-slate-600 hover:text-green-700 transition-colors"
+            className="flex items-center gap-2 text-slate-600 hover:text-primary-600 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm font-medium">Voltar</span>
           </button>
-          <div className="flex items-center gap-2">
-            <Leaf className="text-primary-500 h-6 w-6" />
-            <span className="text-xl font-bold text-primary-500">Abrindo porteiras</span>
+          <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center h-full">
+            <img src="/logo.png" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
           </div>
           <div className="w-24"></div>
         </nav>

@@ -188,10 +188,9 @@ export function Dashboard({
   return (
     <div className="min-h-screen bg-slate-100 font-sans relative">
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Abrindo porteiras" className="h-6 w-6" />
-            <span className="font-bold text-primary-500 hidden sm:inline">Abrindo porteiras</span>
+        <div className="max-w-5xl mx-auto py-2 px-6 flex justify-between items-center h-20">
+          <div className="flex items-center gap-2 h-full">
+            <img src="/logo.png" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500">
