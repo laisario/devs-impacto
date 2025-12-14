@@ -1,0 +1,17 @@
+node_modules/
+frontend/
+.git/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+*.log
+backend/data/rag_documents/
+backend/data/rag_text/
+backend/data/rag_text_clean/
+backend/tests/
+*.md
+!backend/README.md
+!backend/DEPLOY.md
+
