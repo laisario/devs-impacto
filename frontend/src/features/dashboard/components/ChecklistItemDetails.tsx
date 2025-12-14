@@ -123,7 +123,7 @@ export function ChecklistItemDetails({
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">{item.title}</h2>
+              <h2 className="text-2xl font-bold text-primary-500 mb-2">{item.title}</h2>
               <p className="text-slate-500">{item.description}</p>
             </div>
             {item.priority === 'high' && (
@@ -404,7 +404,7 @@ export function ChecklistItemDetails({
                 <div className="mt-3">
                   <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-green-500 transition-all duration-300"
+                      className="h-full bg-primary-500 transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
@@ -417,25 +417,25 @@ export function ChecklistItemDetails({
                 </div>
               )}
 
-              {relatedDoc.aiNotes && (
-                <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border-2 border-green-300 shadow-sm">
+              {relatedDoc?.aiNotes && (
+                <div className="mt-4 bg-gradient-to-r from-primary-50 to-primary-100 p-4 rounded-lg border-2 border-primary-300 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <div className="bg-green-500 p-2 rounded-lg shrink-0">
+                    <div className="bg-primary-500 p-2 rounded-lg shrink-0">
                       <ShieldCheck className="h-5 w-5 text-white" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+                        <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
                           <Sparkles className="h-3 w-3" />
                           Validado por IA
                         </span>
                         {relatedDoc.aiConfidence && (
-                          <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-medium">
+                          <span className="bg-primary-100 text-primary-800 px-2.5 py-1 rounded-full text-xs font-medium">
                             Confiança: {relatedDoc.aiConfidence}
                           </span>
                         )}
                       </div>
-                      <div className="bg-white/80 backdrop-blur-sm p-3 rounded border border-green-200">
+                      <div className="bg-white/80 backdrop-blur-sm p-3 rounded border border-primary-200">
                         <p className="text-sm text-slate-700 leading-relaxed font-medium">{relatedDoc.aiNotes}</p>
                       </div>
                     </div>
@@ -449,7 +449,7 @@ export function ChecklistItemDetails({
             <button
               onClick={() => onMarkDone(item.id)}
               className={`px-6 py-3 rounded-lg font-bold transition flex items-center gap-2 ${
-                item.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-green-600 text-white hover:bg-green-700'
+                item.status === 'done' ? 'bg-primary-100 text-primary-700' : 'bg-primary-500 text-white hover:bg-primary-600'
               }`}
             >
               <CheckCircle2 className="h-5 w-5" />

@@ -56,8 +56,8 @@ export function RegisterPage({ onRegister, onGoToLogin, onBack, isLoading = fals
             <span className="text-sm font-medium">Voltar</span>
           </button>
           <div className="flex items-center gap-2">
-            <Leaf className="text-green-600 h-6 w-6" />
-            <span className="text-xl font-bold text-slate-800">CertificaFácil</span>
+            <Leaf className="text-primary-500 h-6 w-6" />
+            <span className="text-xl font-bold text-primary-500">Abrindo porteiras</span>
           </div>
           <div className="w-24"></div>
         </nav>
@@ -66,7 +66,7 @@ export function RegisterPage({ onRegister, onGoToLogin, onBack, isLoading = fals
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-100">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Criar conta</h1>
+            <h1 className="text-3xl font-bold text-primary-500 mb-2">Criar conta</h1>
             <p className="text-slate-600 mb-8">Cadastre-se para começar sua jornada</p>
 
             {error && (

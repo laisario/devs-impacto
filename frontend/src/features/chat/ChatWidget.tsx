@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Leaf, MessageSquare, Mic, Play, Send, Square, X } from 'lucide-react';
+import { MessageSquare, Mic, Play, Send, Square, X } from 'lucide-react';
 import type { ChatMessage } from '../../domain/models';
 import { sendChatMessage } from '../../services/api/chat';
 import { ApiClientError } from '../../services/api/client';
@@ -120,19 +120,17 @@ export function ChatWidget({ userName }: { userName: string }) {
           className="fixed bottom-6 right-6 w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300"
           style={{ height: '500px' }}
         >
-          <div className="bg-green-600 p-4 flex justify-between items-center text-white">
+          <div className="bg-primary-500 p-4 flex justify-between items-center text-white">
             <div className="flex items-center gap-2">
-              <div className="bg-white/20 p-1.5 rounded-full">
-                <Leaf className="h-4 w-4" />
-              </div>
+              <img src="/logo.png" alt="Abrindo porteiras" className="h-5 w-5" />
               <div>
-                <h3 className="font-bold text-sm">Ajuda CertificaFácil</h3>
+                <h3 className="font-bold text-sm">Ajuda Abrindo porteiras</h3>
                 <p className="text-[10px] opacity-90 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span> Online
+                  <span className="w-1.5 h-1.5 bg-primary-300 rounded-full animate-pulse"></span> Online
                 </p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-green-700 p-1 rounded transition">
+            <button onClick={() => setIsOpen(false)} className="hover:bg-primary-600 p-1 rounded transition">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -148,7 +146,7 @@ export function ChatWidget({ userName }: { userName: string }) {
                 <div
                   className={`max-w-[85%] rounded-2xl p-3 text-sm relative group ${
                     msg.role === 'user'
-                      ? 'bg-green-600 text-white rounded-br-none'
+                      ? 'bg-primary-500 text-white rounded-br-none'
                       : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-bl-none'
                   }`}
                 >
@@ -158,7 +156,7 @@ export function ChatWidget({ userName }: { userName: string }) {
                     <div className="mt-2 flex items-center gap-2 border-t border-slate-100 pt-2">
                       <button
                         onClick={() => (msg.audioPlaying ? stopAudio() : playAudio(msg.content, msg.id))}
-                        className="flex items-center gap-1.5 text-xs font-bold text-green-600 hover:bg-green-50 px-2 py-1 rounded transition"
+                        className="flex items-center gap-1.5 text-xs font-bold text-primary-500 hover:bg-primary-50 px-2 py-1 rounded transition"
                       >
                         {msg.audioPlaying ? (
                           <>

@@ -205,7 +205,7 @@ export function OnboardingFlow({
             <p className="text-slate-600 mb-6">{error}</p>
             <button
               onClick={onFinish}
-              className="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors"
+              className="w-full bg-primary-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-primary-600 transition-colors"
             >
               Continuar para Dashboard
             </button>
@@ -226,7 +226,7 @@ export function OnboardingFlow({
     <div className="min-h-screen bg-white flex flex-col">
       <div className="w-full bg-slate-50 h-2">
         <div
-          className="bg-green-500 h-2 transition-all duration-500"
+          className="bg-primary-500 h-2 transition-all duration-500"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
@@ -242,14 +242,14 @@ export function OnboardingFlow({
           <form onSubmit={handleDapCafSubmit} className="flex flex-col gap-4">
             <div className="mb-8 animate-fade-in">
               <div className="flex items-center gap-3 mb-4">
-                <div className="bg-green-100 p-2 rounded-lg">
-                  <MessageSquare className="text-green-600 h-6 w-6" />
+                <div className="bg-primary-100 p-2 rounded-lg">
+                  <MessageSquare className="text-primary-500 h-6 w-6" />
                 </div>
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">
                   Informação Adicional
                 </span>
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 leading-snug">
+              <h2 className="text-2xl font-bold text-primary-500 leading-snug">
                 Qual é o número da sua DAP/CAF?
               </h2>
             </div>
@@ -258,7 +258,7 @@ export function OnboardingFlow({
                 ref={dapCafInputRef}
                 type="text"
                 placeholder="Digite o número da sua DAP/CAF"
-                className="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-green-500 focus:outline-none text-lg"
+                className="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none text-lg"
                 autoFocus
                 disabled={isSubmitting}
               />
@@ -266,7 +266,7 @@ export function OnboardingFlow({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="bg-primary-500 text-white font-bold py-4 rounded-xl hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -282,14 +282,14 @@ export function OnboardingFlow({
           <>
             <div className="mb-8 animate-fade-in">
               <div className="flex items-center gap-3 mb-4">
-                <div className="bg-green-100 p-2 rounded-lg">
-                  <MessageSquare className="text-green-600 h-6 w-6" />
+                <div className="bg-primary-100 p-2 rounded-lg">
+                  <MessageSquare className="text-primary-500 h-6 w-6" />
                 </div>
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">
                   {totalQuestions > 0 ? `Pergunta ${questionNumber} de ${totalQuestions}` : 'Pergunta'}
                 </span>
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 leading-snug">{currentQuestion.question_text}</h2>
+              <h2 className="text-2xl font-bold text-primary-500 leading-snug">{currentQuestion.question_text}</h2>
             </div>
 
             <div className="space-y-3">
@@ -298,14 +298,14 @@ export function OnboardingFlow({
                   <button
                     onClick={() => handleChoiceClick('Sim')}
                     disabled={isSubmitting}
-                    className="w-full text-left p-4 border-2 border-slate-100 rounded-xl hover:border-green-500 hover:bg-green-50 transition font-medium text-slate-700 active:scale-95 disabled:opacity-50"
+                    className="w-full text-left p-4 border-2 border-slate-100 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition font-medium text-slate-700 active:scale-95 disabled:opacity-50"
                   >
                     Sim
                   </button>
                   <button
                     onClick={() => handleChoiceClick('Não')}
                     disabled={isSubmitting}
-                    className="w-full text-left p-4 border-2 border-slate-100 rounded-xl hover:border-green-500 hover:bg-green-50 transition font-medium text-slate-700 active:scale-95 disabled:opacity-50"
+                    className="w-full text-left p-4 border-2 border-slate-100 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition font-medium text-slate-700 active:scale-95 disabled:opacity-50"
                   >
                     Não
                   </button>
@@ -328,7 +328,7 @@ export function OnboardingFlow({
                             className={`w-full text-left p-4 border-2 rounded-xl transition font-medium active:scale-95 disabled:opacity-50 flex items-center gap-3 ${
                               isSelected
                                 ? 'border-green-500 bg-green-50 text-slate-800'
-                                : 'border-slate-100 hover:border-green-500 hover:bg-green-50 text-slate-700'
+                                : 'border-slate-100 hover:border-primary-500 hover:bg-primary-50 text-slate-700'
                             }`}
                           >
                             <div
@@ -359,7 +359,7 @@ export function OnboardingFlow({
                       <button
                         onClick={handleMultiSelectSubmit}
                         disabled={isSubmitting || selectedOptions.length === 0}
-                        className="mt-4 bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="mt-4 bg-primary-500 text-white font-bold py-4 rounded-xl hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {isSubmitting ? (
                           <>
@@ -379,7 +379,7 @@ export function OnboardingFlow({
                           key={opt}
                           onClick={() => handleChoiceClick(opt)}
                           disabled={isSubmitting}
-                          className="w-full text-left p-4 border-2 border-slate-100 rounded-xl hover:border-green-500 hover:bg-green-50 transition font-medium text-slate-700 active:scale-95 disabled:opacity-50"
+                          className="w-full text-left p-4 border-2 border-slate-100 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition font-medium text-slate-700 active:scale-95 disabled:opacity-50"
                         >
                           {opt}
                         </button>
@@ -395,14 +395,14 @@ export function OnboardingFlow({
                     ref={inputRef}
                     type="text"
                     placeholder="Digite sua resposta"
-                    className="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-green-500 focus:outline-none text-lg"
+                    className="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none text-lg"
                     autoFocus
                     disabled={isSubmitting}
                   />
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="bg-primary-500 text-white font-bold py-4 rounded-xl hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
                       <>

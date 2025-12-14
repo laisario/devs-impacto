@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Leaf, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export function LandingPage({
   onStart,
@@ -8,14 +8,13 @@ export function LandingPage({
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
-        <nav className="p-6 flex justify-between items-center max-w-6xl mx-auto w-full">
-          <div className="flex items-center gap-2">
-            <Leaf className="text-green-600 h-6 w-6" />
-            <span className="text-xl font-bold text-slate-800">CertificaFácil</span>
+        <nav className="py-2 px-6 flex justify-between items-center max-w-6xl mx-auto w-full h-20">
+          <div className="flex items-center gap-2 h-full">
+            <img src="logo.png" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
           </div>
           <button
             onClick={onStart}
-            className="text-sm font-medium text-slate-600 hover:text-green-700 transition-colors"
+            className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors"
           >
             Entrar
           </button>
@@ -23,14 +22,14 @@ export function LandingPage({
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-4xl mx-auto mt-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-semibold mb-6">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-100 text-primary-800 text-xs font-semibold mb-6">
           <ShieldCheck className="h-3 w-3" />
           MVP para Produtores Rurais
         </div>
 
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
+        <h1 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight" style={{ color: '#80EF8F' }}>
           Venda para escolas e mercados <br className="hidden md:block" />
-          <span className="text-green-600">sem medo da burocracia</span>
+          sem medo da burocracia
         </h1>
 
         <p className="text-lg text-slate-600 mb-10 max-w-2xl mx-auto">
@@ -41,7 +40,10 @@ export function LandingPage({
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <button
             onClick={onStart}
-            className="group bg-green-600 hover:bg-green-700 text-white text-lg px-8 py-4 rounded-full font-bold transition-all flex items-center gap-3 shadow-lg shadow-green-200"
+            className="group text-white text-lg px-8 py-4 rounded-full font-bold transition-all flex items-center gap-3 shadow-lg"
+            style={{ backgroundColor: '#80EF8F', boxShadow: '0 10px 15px -3px rgba(128, 239, 143, 0.3)' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6dd87a'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#80EF8F'}
           >
             Começar Gratuitamente
             <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -56,9 +58,9 @@ export function LandingPage({
           ].map((feat) => (
             <div
               key={feat.title}
-              className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:border-green-200 transition"
+              className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:border-primary-200 transition"
             >
-              <CheckCircle2 className="text-green-500 h-6 w-6 mb-3" />
+              <CheckCircle2 className="text-primary-500 h-6 w-6 mb-3" />
               <h3 className="font-bold text-slate-800 mb-2">{feat.title}</h3>
               <p className="text-sm text-slate-500">{feat.desc}</p>
             </div>
@@ -66,7 +68,7 @@ export function LandingPage({
         </div>
 
         <p className="mt-12 text-xs text-slate-400 max-w-lg">
-          Aviso: O CertificaFácil é uma ferramenta informativa. Não substituímos órgãos oficiais como MAPA,
+          Aviso: O Abrindo porteiras é uma ferramenta informativa. Não substituímos órgãos oficiais como MAPA,
           Vigilância Sanitária ou consultoria jurídica.
         </p>
       </main>

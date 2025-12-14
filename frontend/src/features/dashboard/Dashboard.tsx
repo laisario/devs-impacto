@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   ChevronRight,
   FileText,
-  Leaf,
   ShieldCheck,
   Upload,
 } from 'lucide-react';
@@ -191,10 +190,8 @@ export function Dashboard({
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="bg-green-600 rounded-full p-1.5">
-              <Leaf className="text-white h-4 w-4" />
-            </div>
-            <span className="font-bold text-slate-800 hidden sm:inline">CertificaFácil</span>
+            <img src="/logo.png" alt="Abrindo porteiras" className="h-6 w-6" />
+            <span className="font-bold text-primary-500 hidden sm:inline">Abrindo porteiras</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500">
@@ -276,7 +273,7 @@ export function Dashboard({
           <button
             onClick={() => setActiveTab('checklist')}
             className={`pb-3 text-sm font-bold transition ${
-              activeTab === 'checklist' ? 'text-green-600 border-b-2 border-green-600' : 'text-slate-500'
+              activeTab === 'checklist' ? 'text-primary-500 border-b-2 border-primary-500' : 'text-slate-500'
             }`}
           >
             Lista de Tarefas
@@ -297,8 +294,8 @@ export function Dashboard({
               <div
                 key={item.id}
                 onClick={() => openDetails(item)}
-                className={`group bg-white p-4 rounded-lg border shadow-sm transition-all hover:shadow-md hover:border-green-300 cursor-pointer flex items-start gap-4 ${
-                  item.status === 'done' ? 'border-green-200 bg-green-50/30' : 'border-slate-100'
+                className={`group bg-white p-4 rounded-lg border shadow-sm transition-all hover:shadow-md hover:border-primary-300 cursor-pointer flex items-start gap-4 ${
+                  item.status === 'done' ? 'border-primary-200 bg-primary-50/30' : 'border-slate-100'
                 }`}
               >
                 <div
@@ -312,8 +309,8 @@ export function Dashboard({
                   }}
                   className={`mt-1 h-6 w-6 rounded border-2 flex items-center justify-center transition-colors z-10 cursor-pointer ${
                     item.status === 'done'
-                      ? 'bg-green-500 border-green-500 text-white'
-                      : 'border-slate-300 text-transparent hover:border-green-400'
+                      ? 'bg-primary-500 border-primary-500 text-white'
+                      : 'border-slate-300 text-transparent hover:border-primary-400'
                   }`}
                 >
                   {item.status === 'done' && <CheckCircle2 className="h-4 w-4" />}
