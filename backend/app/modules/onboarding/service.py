@@ -280,10 +280,11 @@ class OnboardingService:
         all_questions = await self._get_questions_list()
         total_questions = len(all_questions)
         answered_count = len(answered_question_ids)
-
-        # Calculate status - count all questions
-        total_questions = len(all_questions)
-        answered_count = len(answered_question_ids)
+        
+        # Filter answered_count to only include questions that still exist
+        # This prevents progress > 100% if questions were removed from catalog
+        valid_question_ids = {q.question_id for q in all_questions}
+        answered_count = len([qid for qid in answered_question_ids if qid in valid_question_ids])
         
         if answered_count == 0:
             status = OnboardingStatus.NOT_STARTED
@@ -307,8 +308,11 @@ class OnboardingService:
             next_question = question
             break
 
-        # Calculate progress
-        progress = (answered_count / total_questions * 100) if total_questions > 0 else 0
+        # Calculate progress (ensure it never exceeds 100%)
+        if total_questions > 0:
+            progress = min((answered_count / total_questions * 100), 100.0)
+        else:
+            progress = 0.0
 
         # Get completion date if completed
         completed_at = None
