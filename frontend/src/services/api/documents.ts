@@ -2,7 +2,7 @@
  * Documents API service
  */
 
-import { apiRequest, apiRequestFile, normalizeUploadUrl } from './client';
+import { apiRequest, normalizeUploadUrl } from './client';
 import { API_ENDPOINTS } from './config';
 import type {
   DocumentCreate,
