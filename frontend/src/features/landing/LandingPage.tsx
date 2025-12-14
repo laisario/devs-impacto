@@ -1,11 +1,9 @@
-import { ArrowRight, CheckCircle2, Leaf, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Leaf, ShieldCheck } from 'lucide-react';
 
 export function LandingPage({
   onStart,
-  onConsult,
 }: {
   onStart: () => void;
-  onConsult: () => void;
 }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -47,14 +45,6 @@ export function LandingPage({
           >
             Começar Gratuitamente
             <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </button>
-
-          <button
-            onClick={onConsult}
-            className="group bg-white border-2 border-slate-200 hover:border-green-500 hover:text-green-600 text-slate-600 text-lg px-8 py-4 rounded-full font-bold transition-all flex items-center gap-3"
-          >
-            <Phone className="h-5 w-5 text-slate-400 group-hover:text-green-600" />
-            Falar com especialista
           </button>
         </div>
 

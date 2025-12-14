@@ -27,7 +27,7 @@ export default function App() {
   };
 
   if (view === 'landing') {
-    return <LandingPage onStart={() => setView('onboarding')} onConsult={() => setView('escalation')} />;
+    return <LandingPage onStart={() => setView('onboarding')} />;
   }
 
   if (view === 'onboarding') {
