@@ -233,7 +233,7 @@ export function OnboardingFlow({
       <div className="w-full bg-slate-50 h-2">
         <div
           className="h-2 transition-all duration-500"
-          style={{ width: `${progressPercent}%`, backgroundColor: '#80EF8F' }}
+          style={{ width: `${progressPercent}%`, backgroundColor: '#00B521' }}
         />
       </div>
 
@@ -273,9 +273,9 @@ export function OnboardingFlow({
               type="submit"
               disabled={isSubmitting}
               className="text-white font-bold py-4 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{ backgroundColor: '#80EF8F' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6dd87a'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#80EF8F'}
+              style={{ backgroundColor: '#00B521' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00901a'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00B521'}
             >
               {isSubmitting ? (
                 <>
@@ -339,7 +339,7 @@ export function OnboardingFlow({
                                 ? 'text-slate-800'
                                 : 'border-slate-100 hover:border-primary-500 hover:bg-primary-50 text-slate-700'
                             }`}
-                            style={isSelected ? { borderColor: '#80EF8F', backgroundColor: '#f0fdf4' } : {}}
+                            style={isSelected ? { borderColor: '#00B521', backgroundColor: '#f0fdf4' } : {}}
                           >
                             <div
                               className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
@@ -347,7 +347,7 @@ export function OnboardingFlow({
                                   ? ''
                                   : 'border-slate-300 bg-white'
                               }`}
-                              style={isSelected ? { backgroundColor: '#80EF8F', borderColor: '#80EF8F' } : {}}
+                              style={isSelected ? { backgroundColor: '#00B521', borderColor: '#00B521' } : {}}
                             >
                               {isSelected && (
                                 <svg

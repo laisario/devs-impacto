@@ -80,15 +80,15 @@ export function ScreenWrapper({
                     ? 'bg-white border-2 hover:bg-primary-50'
                     : 'text-white'
                 }`}
-                style={primaryAction.variant !== 'secondary' ? { backgroundColor: '#80EF8F' } : { color: '#80EF8F', borderColor: '#80EF8F' }}
+                style={primaryAction.variant !== 'secondary' ? { backgroundColor: '#00B521' } : { color: '#00B521', borderColor: '#00B521' }}
                 onMouseEnter={(e) => {
                   if (!primaryAction.disabled && primaryAction.variant !== 'secondary') {
-                    e.currentTarget.style.backgroundColor = '#6dd87a';
+                    e.currentTarget.style.backgroundColor = '#00901a';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!primaryAction.disabled && primaryAction.variant !== 'secondary') {
-                    e.currentTarget.style.backgroundColor = '#80EF8F';
+                    e.currentTarget.style.backgroundColor = '#00B521';
                   }
                 }}
                 aria-label={primaryAction.label}

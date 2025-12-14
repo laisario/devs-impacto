@@ -22,7 +22,7 @@ export function LandingPage({
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: '#80EF8F' }}></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: '#00B521' }}></div>
           <p className="text-slate-600">Carregando...</p>
         </div>
       </div>
@@ -34,7 +34,7 @@ export function LandingPage({
       <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
         <nav className="py-2 px-6 flex justify-between items-center max-w-6xl mx-auto w-full h-20">
           <div className="flex items-center gap-2 h-full">
-            <img src="logo.png" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
+            <img src="logo.jpeg" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
           </div>
           <button
             onClick={handleStart}
@@ -52,7 +52,7 @@ export function LandingPage({
           MVP para Produtores Rurais
         </div>
 
-        <h1 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight" style={{ color: '#80EF8F' }}>
+        <h1 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight" style={{ color: '#00B521' }}>
           Venda para escolas e mercados <br className="hidden md:block" />
           sem medo da burocracia
         </h1>
@@ -67,9 +67,9 @@ export function LandingPage({
             onClick={handleStart}
             disabled={isLoading}
             className="group text-white text-lg px-8 py-4 rounded-full font-bold transition-all flex items-center gap-3 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: '#80EF8F', boxShadow: '0 10px 15px -3px rgba(128, 239, 143, 0.3)' }}
-            onMouseEnter={(e) => !isLoading && (e.currentTarget.style.backgroundColor = '#6dd87a')}
-            onMouseLeave={(e) => !isLoading && (e.currentTarget.style.backgroundColor = '#80EF8F')}
+            style={{ backgroundColor: '#00B521', boxShadow: '0 10px 15px -3px rgba(0, 181, 33, 0.3)' }}
+            onMouseEnter={(e) => !isLoading && (e.currentTarget.style.backgroundColor = '#00901a')}
+            onMouseLeave={(e) => !isLoading && (e.currentTarget.style.backgroundColor = '#00B521')}
           >
             {isLoading ? (
               <>
