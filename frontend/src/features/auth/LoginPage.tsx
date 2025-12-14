@@ -72,7 +72,7 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
             <span className="text-sm font-medium">Voltar</span>
           </button>
           <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center h-full">
-            <img src="/logo.jpeg" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
+            <img src="/logo.jpeg" alt="Porteiras abertas" className="h-full w-auto object-contain" />
           </div>
           <div className="w-24"></div>
         </nav>

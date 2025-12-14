@@ -34,7 +34,7 @@ export function LandingPage({
       <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
         <nav className="py-2 px-6 flex justify-between items-center max-w-6xl mx-auto w-full h-20">
           <div className="flex items-center gap-2 h-full">
-            <img src="logo.jpeg" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
+            <img src="logo.jpeg" alt="Porteiras abertas" className="h-full w-auto object-contain" />
           </div>
           <button
             onClick={handleStart}
@@ -103,7 +103,7 @@ export function LandingPage({
         </div>
 
         <p className="mt-12 text-xs text-slate-400 max-w-lg">
-          Aviso: O Abrindo porteiras é uma ferramenta informativa. Não substituímos órgãos oficiais como MAPA,
+          Aviso: O Porteiras abertas é uma ferramenta informativa. Não substituímos órgãos oficiais como MAPA,
           Vigilância Sanitária ou consultoria jurídica.
         </p>
       </main>

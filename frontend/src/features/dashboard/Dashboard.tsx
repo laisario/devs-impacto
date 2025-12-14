@@ -220,7 +220,7 @@ export function Dashboard({
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto py-2 px-6 flex justify-between items-center h-20">
           <div className="flex items-center gap-2 h-full">
-            <img src="/logo.jpeg" alt="Abrindo porteiras" className="h-full w-auto object-contain" />
+            <img src="/logo.jpeg" alt="Porteiras abertas" className="h-full w-auto object-contain" />
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500">

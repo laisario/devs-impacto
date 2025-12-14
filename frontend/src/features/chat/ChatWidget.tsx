@@ -124,9 +124,9 @@ export function ChatWidget({ userName }: { userName: string }) {
         >
           <div className="bg-primary-500 p-4 flex justify-between items-center text-white">
             <div className="flex items-center gap-2">
-              <img src="/logo.jpeg" alt="Abrindo porteiras" className="h-5 w-5" />
+              <img src="/logo.jpeg" alt="Porteiras abertas" className="h-5 w-5" />
               <div>
-                <h3 className="font-bold text-sm">Ajuda Abrindo porteiras</h3>
+                <h3 className="font-bold text-sm">Ajuda Porteiras abertas</h3>
                 <p className="text-[10px] opacity-90 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-primary-300 rounded-full animate-pulse"></span> Online
                 </p>

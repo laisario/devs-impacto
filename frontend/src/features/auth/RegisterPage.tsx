@@ -57,7 +57,7 @@ export function RegisterPage({ onRegister, onGoToLogin, onBack, isLoading = fals
           </button>
           <div className="flex items-center gap-2">
             <Leaf className="text-primary-500 h-6 w-6" />
-            <span className="text-xl font-bold text-primary-500">Abrindo porteiras</span>
+            <span className="text-xl font-bold text-primary-500">Porteiras abertas</span>
           </div>
           <div className="w-24"></div>
         </nav>
